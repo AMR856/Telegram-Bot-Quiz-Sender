@@ -1,0 +1,212 @@
+[
+  {
+    "question": "🔊 What is the range of frequencies that the human ear can typically hear?",
+    "options": ["20 Hz to 20,000 Hz", "0 Hz to 100,000 Hz", "500 Hz to 5,000 Hz", "20 Hz to 200,000 Hz"],
+    "correctAnswerId": 0,
+    "explanation": "The human hearing range is standardized from 20 Hz (lowest bass) to 20,000 Hz (highest treble)."
+  },
+  {
+    "question": "🎹 In MIDI technology, what does the acronym 'MIDI' stand for?",
+    "options": ["Musical Instrument Digital Interface", "Music Interaction Digital Integration", "Main Instrument Data Interface", "Multi Interface Digital Output"],
+    "correctAnswerId": 0,
+    "explanation": "MIDI stands for Musical Instrument Digital Interface, a protocol that allows electronic instruments and computers to communicate."
+  },
+  {
+    "question": "📏 Which MIDI parameter determines how 'hard' or 'fast' a key is pressed?",
+    "options": ["Pitch", "Aftertouch", "Velocity", "Modulation"],
+    "correctAnswerId": 2,
+    "explanation": "Velocity measures the speed/force of a key press, usually mapped to volume or intensity."
+  },
+  {
+    "question": "🎼 Which waveform is known as the 'purest' sound with NO harmonics?",
+    "options": ["Square Wave", "Sawtooth Wave", "Sine Wave", "Triangle Wave"],
+    "correctAnswerId": 2,
+    "explanation": "A Sine wave consists of only the fundamental frequency ($f_1$) with no additional overtones."
+  },
+  {
+    "question": "🪚 Which waveform contains ALL harmonics (both odd and even) and sounds 'buzzy'?",
+    "options": ["Sine Wave", "Square Wave", "Triangle Wave", "Sawtooth Wave"],
+    "correctAnswerId": 3,
+    "explanation": "The Sawtooth wave is the richest in harmonics, containing every integer multiple of the fundamental."
+  },
+  {
+    "question": "🟦 What is the unique harmonic characteristic of a Square Wave?",
+    "options": ["Only Even harmonics", "Only Odd harmonics", "No harmonics", "All harmonics at equal volume"],
+    "correctAnswerId": 1,
+    "explanation": "Square waves are composed of only odd harmonics ($1f, 3f, 5f) with amplitudes decreasing by $1/N$."
+  },
+  {
+    "question": "📐 How do harmonics in a Triangle Wave decrease in amplitude?",
+    "options": ["Decrease by $1/N$", "Decrease by $1/N^2$", "They stay constant", "They increase by $N$"],
+    "correctAnswerId": 1,
+    "explanation": "Triangle waves have only odd harmonics, but they drop off much faster ($1/N^2$) than square waves, making them sound mellower."
+  },
+  {
+    "question": "🏗 Which type of synthesis builds complex sounds by adding multiple sine waves together?",
+    "options": ["Subtractive Synthesis", "FM Synthesis", "Additive Synthesis", "Granular Synthesis"],
+    "correctAnswerId": 2,
+    "explanation": "Additive Synthesis follows Fourier's theory that any complex sound can be created by summing simple sine waves."
+  },
+  {
+    "question": "✂️ Which type of synthesis starts with a rich waveform and uses filters to remove frequencies?",
+    "options": ["Subtractive Synthesis", "Additive Synthesis", "Wave-table Synthesis", "Physical Modeling"],
+    "correctAnswerId": 0,
+    "explanation": "Subtractive Synthesis 'sculpts' sound by using filters (like LPF) to subtract unwanted harmonics from a rich source."
+  },
+  {
+    "question": "📻 What does FM stand for in FM Synthesis?",
+    "options": ["Filter Modulation", "Frequency Modulation", "Frequency Mixing", "Fixed Modulation"],
+    "correctAnswerId": 1,
+    "explanation": "FM Synthesis works by using one oscillator (Modulator) to rapidly change the frequency of another (Carrier)."
+  },
+  {
+    "question": "🎹 Which synthesis method uses short digital recordings (samples) of real instruments?",
+    "options": ["FM Synthesis", "Subtractive Synthesis", "Wave-table Synthesis", "Additive Synthesis"],
+    "correctAnswerId": 2,
+    "explanation": "Wave-table synthesis uses pre-recorded digital snapshots of sounds to recreate realistic or complex timbres."
+  },
+  {
+    "question": "📉 In an ADSR envelope, which stage remains constant as long as the key is held?",
+    "options": ["Attack", "Decay", "Sustain", "Release"],
+    "correctAnswerId": 2,
+    "explanation": "Sustain is a 'Level' (volume) parameter, while Attack, Decay, and Release are 'Time' parameters."
+  },
+  {
+    "question": "🎛 What is the primary function of a Low Pass Filter (LPF)?",
+    "options": ["Boosts high frequencies", "Cuts low frequencies", "Allows low frequencies to pass and cuts highs", "Removes the fundamental frequency"],
+    "correctAnswerId": 2,
+    "explanation": "An LPF lets frequencies below the 'Cutoff' pass through while attenuating everything above it."
+  },
+  {
+    "question": "⚡️ What happens when you increase the 'Resonance' (Q) of a filter?",
+    "options": ["The sound gets quieter", "A peak is created at the cutoff frequency", "The filter stops working", "The pitch goes up by an octave"],
+    "correctAnswerId": 1,
+    "explanation": "Resonance boosts the signal right at the cutoff point, creating a 'ringing' or 'whistling' effect."
+  },
+  {
+    "question": "🌀 What is the role of an LFO (Low Frequency Oscillator)?",
+    "options": ["To generate audible bass notes", "To modulate other parameters like pitch or volume slowly", "To record sound samples", "To amplify the output signal"],
+    "correctAnswerId": 1,
+    "explanation": "LFOs vibrate too slowly to be heard as pitch (usually $< 20$ Hz) and are used to create effects like Vibrato or Tremolo."
+  },
+  {
+    "question": "🔢 What is the maximum value for a standard MIDI velocity message?",
+    "options": ["100", "127", "255", "1024"],
+    "correctAnswerId": 1,
+    "explanation": "MIDI velocity is a 7-bit value, meaning it ranges from 0 to 127."
+  },
+  {
+    "question": "🛰 What is the binary code for a MIDI 'Note-On' Status Byte?",
+    "options": ["1000", "1010", "1100", "1001"],
+    "correctAnswerId": 3,
+    "explanation": "The upper nibble '1001' (9 in Hex) represents a Note-On command."
+  },
+  {
+    "question": "🔌 Which software format allows virtual synths to run inside a DAW?",
+    "options": ["MP3", "VST", "WAV", "JPEG"],
+    "correctAnswerId": 1,
+    "explanation": "VST (Virtual Studio Technology) is the industry standard for software instrument and effect plugins."
+  },
+  {
+    "question": "🥁 What does an ADC (Analog-to-Digital Converter) do?",
+    "options": ["Changes the pitch of a song", "Converts electrical voltage into binary numbers", "Turns MIDI into Audio", "Mixes two sounds together"],
+    "correctAnswerId": 1,
+    "explanation": "Sampling involves an ADC taking snapshots of a continuous analog wave and converting them into digital data."
+  },
+  {
+    "question": "📡 According to Nyquist, what is the sampling rate for a 20kHz signal?",
+    "options": ["10 kHz", "20 kHz", "40 kHz", "80 kHz"],
+    "correctAnswerId": 2,
+    "explanation": "The Nyquist Theorem states the sampling rate must be at least twice the highest frequency ($2 \times f_{max}$)."
+  },
+  {
+    "question": "🥪 In Granular Synthesis, what are the small fragments of sound called?",
+    "options": ["Bits", "Grains", "Slices", "Chips"],
+    "correctAnswerId": 1,
+    "explanation": "Granular synthesis breaks audio into 'Grains' (1-100ms) to create textures."
+  },
+  {
+    "question": "🎹 A MIDI Controller with no speakers is technically a...",
+    "options": ["Sound Module", "Human Interface Device", "Analog Synth", "Amplifier"],
+    "correctAnswerId": 1,
+    "explanation": "A MIDI controller sends instructions but does not generate sound itself."
+  },
+  {
+    "question": "🎚 Which component in a synth controls the final volume/gain?",
+    "options": ["VCO", "VCF", "VCA", "LFO"],
+    "correctAnswerId": 2,
+    "explanation": "The VCA (Voltage Controlled Amplifier) determines the output level of the sound."
+  },
+  {
+    "question": "🎻 Which stage of ADSR determines how long a sound fades out after releasing the key?",
+    "options": ["Attack", "Decay", "Sustain", "Release"],
+    "correctAnswerId": 3,
+    "explanation": "Release is the time it takes for the signal to drop to zero after the key is let go."
+  },
+  {
+    "question": "🌓 What is 'Aliasing' in digital audio?",
+    "options": ["A type of harmony", "Distortion caused by low sampling rates", "A MIDI shortcut", "The name of a synth brand"],
+    "correctAnswerId": 1,
+    "explanation": "Aliasing occurs when frequencies higher than half the sampling rate are recorded, creating 'ghost' frequencies."
+  },
+  {
+    "question": "📜 What is the standard bit-depth for a standard Audio CD?",
+    "options": ["8-bit", "16-bit", "24-bit", "32-bit"],
+    "correctAnswerId": 1,
+    "explanation": "CD quality is defined as 44.1 kHz sampling rate and 16-bit depth."
+  },
+  {
+    "question": "🌪 Which synthesis is best at creating 'unreal' or 'metallic' sounds?",
+    "options": ["Additive", "FM", "Wave-table", "Subtractive"],
+    "correctAnswerId": 1,
+    "explanation": "FM synthesis is famous for its complex, bell-like, and metallic timbres."
+  },
+  {
+    "question": "🏠 Which MIDI port is used to send data OUT of a device to another?",
+    "options": ["MIDI IN", "MIDI OUT", "MIDI THRU", "MIDI SYNC"],
+    "correctAnswerId": 1,
+    "explanation": "MIDI OUT sends data generated by the device (like key presses) to external gear."
+  },
+  {
+    "question": "🛣 What is the purpose of the MIDI THRU port?",
+    "options": ["To record audio", "To pass a copy of data from MIDI IN to another device", "To charge the controller", "To change the instrument"],
+    "correctAnswerId": 1,
+    "explanation": "MIDI THRU allows 'daisy-chaining' by passing data from the input directly to the next device in the chain."
+  },
+  {
+    "question": "🕰 What is 'Latency' in a digital music system?",
+    "options": ["The volume of the sound", "The delay between pressing a key and hearing the sound", "The number of harmonics", "The file size of the project"],
+    "correctAnswerId": 1,
+    "explanation": "Latency is the time delay caused by digital processing and buffer sizes."
+  },
+  {
+    "question": "🎹 Which parameter changes the 'Pitch' in a Wave-table synthesizer?",
+    "options": ["Filter Cutoff", "Playback Speed of the sample", "LFO Rate", "VCA Gain"],
+    "correctAnswerId": 1,
+    "explanation": "By speeding up or slowing down the sample playback, the frequency (pitch) is changed."
+  },
+  {
+    "question": "🥁 What does a 'Velocity' value of 0 usually mean in MIDI?",
+    "options": ["Max Volume", "Middle Volume", "Note-Off (Silence)", "Change Instrument"],
+    "correctAnswerId": 2,
+    "explanation": "Velocity 0 is a standard shorthand for stopping a note (Note-Off)."
+  },
+  {
+    "question": "🌈 If you sum a fundamental and its harmonics, what are you changing?",
+    "options": ["The Pitch", "The Timbre", "The Tempo", "The MIDI Channel"],
+    "correctAnswerId": 1,
+    "explanation": "Changing the harmonic balance changes the quality (timbre), not the fundamental note."
+  },
+  {
+    "question": "🏗 In a modular synth, what connects the different components?",
+    "options": ["WiFi", "Patch Cables", "MIDI DIN", "USB"],
+    "correctAnswerId": 1,
+    "explanation": "Modular synths use physical patch cables to route control voltage (CV) and audio between modules."
+  },
+  {
+    "question": "💾 What is the main advantage of Wave-table synthesis over FM?",
+    "options": ["Uses less RAM", "Sounds more like real acoustic instruments", "Doesn't require electricity", "It is an analog process"],
+    "correctAnswerId": 1,
+    "explanation": "Because it uses actual recordings, wave-table synthesis is much better at imitating real instruments like pianos or guitars."
+  }
+]

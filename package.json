@@ -1,0 +1,25 @@
+{
+  "name": "telegram-quiz-bot",
+  "version": "1.0.0",
+  "description": "Send interactive quizzes to Telegram",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js send-all",
+    "send-buttons": "node index.js send-buttons",
+    "random": "node index.js send-random",
+    "listen": "node index.js listen"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "quiz",
+    "poll"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^17.4.0",
+    "express": "^4.18.2"
+  }
+}
