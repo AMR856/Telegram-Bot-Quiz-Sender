@@ -1,108 +1,168 @@
-# Telegram Quiz Bot
+# Telegram Quiz API (Multi-Tenant)
 
-A Node.js bot that sends quiz polls to Telegram channels, groups, or chats.
+This project is now an API service where each user can:
 
-It includes safeguards for Telegram length limits:
-- Long explanations are sent in a separate spoiler message.
-- Long poll options are shown in a text message, while the poll uses short labels.
-- 429 rate-limit responses are retried automatically.
+- Sign in with their own Telegram bot token and chat ID.
+- Upload quiz images to Cloudinary.
+- Submit quiz objects to a background queue.
+- Track queued job status without blocking API requests.
 
-## Features
+Each user can have a different bot token and chat ID. Images are organized in a Cloudinary folder derived from chat ID by removing all dashes.
 
-- Sends all quizzes from a JSON file.
-- Supports poll type `quiz` with `correct_option_id`.
-- Uses spoiler formatting for explanations.
-- Logs success and failures to files.
-- Class-based modular architecture.
+Example:
+
+- chat ID: -1003730571930
+- Cloudinary folder: 1003730571930
+
+## Why Queue Was Added
+
+Sending many quizzes can take time and can hit Telegram rate limits. The API now enqueues send operations in Redis/BullMQ so the HTTP request returns quickly while a worker sends quizzes in the background.
 
 ## Requirements
 
 - Node.js 18+
-- Telegram bot token
-- Target chat/channel ID
+- Redis (for queue)
+- Cloudinary account
 
-## Setup
+## Environment Variables
+
+Create .env with:
+
+PORT=3000
+REDIS_URL=redis://127.0.0.1:6379
+RUN_QUEUE_WORKER=true
+
+MONGODB_URI=mongodb://127.0.0.1:27017/telegram_quiz_bot
+# Optional override if URI path has no DB name
+MONGODB_DB_NAME=telegram_quiz_bot
+# Required to encrypt bot tokens at rest in DB
+BOT_TOKEN_ENCRYPTION_KEY=replace_with_a_long_random_secret
+
+# API rate limit tuning
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=120
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX=20
+
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+
+Legacy single-bot envs are still supported for send-all mode:
+
+BOT_TOKEN=telegram_bot_token
+CHAT_ID=-1001234567890
+IS_CHANNEL=true
+SUCCESS_LOG_FILE=logs/send-success.log
+FAILED_LOG_FILE=logs/failed-messages.log
+
+## Run Locally
 
 1. Install dependencies:
 
-```bash
 npm install
-```
 
-2. Create/update `.env` with values similar to:
+2. Start API:
 
-```env
-BOT_TOKEN=123456789:your_bot_token
-CHAT_ID=-1001234567890
-IS_CHANNEL=true
-SUCCESS_LOG_FILE=send-success.log
-FAILED_LOG_FILE=failed-messages.log
-# Optional: override API base URL
-# TELEGRAM_API_URL=https://api.telegram.org/bot<token>
-```
-
-## Run
-
-```bash
 npm run start
-```
 
-This runs:
+3. Optional legacy mode (single bot env):
 
-```bash
-node index.js send-all
-```
+npm run send-all
 
-## Quiz File Format
+## API Endpoints
 
-Quizzes are read from `data/quizzes.json`.
+1. POST /auth/sign-in
 
-Example:
+Body:
 
-```json
-[
-  {
-    "question": "What are the two main types of packet switches in the Internet?",
-    "options": [
-      "Hubs and repeaters",
-      "Routers and link-layer switches",
-      "Modems and amplifiers",
-      "Bridges and gateways"
-    ],
-    "correctAnswerId": 1,
-    "explanation": "Routers are used in the network core and link-layer switches in access networks."
-  }
-]
-```
+{
+  "chatId": "-1003730571930",
+  "botToken": "123456:ABC",
+  "isChannel": true
+}
 
-Notes:
-- `correctAnswerId` is zero-based (0 = first option, 1 = second option).
-- Keep the file as a JSON array of quiz objects.
+Response includes:
+
+- apiKey (use this in x-api-key header)
+- user metadata
+- cloudinaryFolder
+
+2. POST /images/upload
+
+- Auth required: x-api-key
+- multipart/form-data
+- field name: image
+
+Response includes secureUrl and publicId.
+
+3. POST /quizzes/send
+
+- Auth required: x-api-key
+- Body:
+
+{
+  "delayMs": 2000,
+  "quizzes": [
+    {
+      "question": "...",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswerId": 1,
+      "image": "images/1/my_public_id",
+      "explanation": "..."
+    }
+  ]
+}
+
+Notes on image/photo field:
+
+- Full URL: used directly.
+- Cloudinary public ID/path: converted to Cloudinary URL using your cloud name and user folder.
+- In file-based legacy mode, local relative image paths are still supported.
+
+4. GET /jobs/:id
+
+- Auth required: x-api-key
+- Returns queue job state and result.
+
+## Docker and Multi-User
+
+Different bot tokens/chat IDs do not require Docker by themselves.
+
+Docker is recommended when you want:
+
+- Easy deployment
+- Redis + API in one stack
+- Horizontal scaling (multiple API/worker instances)
+
+Run with Docker Compose:
+
+docker compose up --build
+
+This starts:
+
+- API on port 3000
+- Redis on port 6379
 
 ## Project Structure
 
-- `index.js`: application entrypoint and environment bootstrapping.
-- `lib/telegramClient.js`: low-level Telegram API wrapper.
-- `lib/quizSender.js`: quiz delivery logic and Telegram limit handling.
-- `lib/quizBot.js`: orchestration, loading quizzes, and logging callbacks.
-- `utils/parseQuizzes.js`: reads and validates quiz JSON.
-- `utils/appendLog.js`: appends timestamped logs.
-- `utils/escapeMarkdown.js`: escapes MarkdownV2 explanation text.
-- `utils/escapeHtml.js`: escapes HTML for message content.
+- index.js: entrypoint (API mode + legacy mode)
+- server.js: API server composition
+- lib/api/routes/apiRoutes.js: API route handlers
+- lib/api/middleware/auth.js: API key auth
+- lib/api/services/telegramAuthService.js: Telegram token verification
+- lib/api/services/quizJobService.js: queue job orchestration and status loading
+- queue.js: BullMQ queue/worker setup
+- lib/integrations/cloudinaryClient.js: Cloudinary upload helper
+- lib/integrations/telegramClient.js: Telegram API wrapper
+- lib/quiz/quizDispatchService.js: send queued quizzes for a user
+- lib/quiz/quizSender.js: Telegram quiz send logic
+- lib/quiz/quizBot.js: legacy send-all orchestration
+- utils/userStore.js: persistent user store
+- utils/quizMedia.js: media normalization for Cloudinary/local URLs
 
-## Logs
+## Security Note
 
-- Success logs: file defined by `SUCCESS_LOG_FILE`
-- Failure logs: file defined by `FAILED_LOG_FILE`
+Users are stored in MongoDB. Bot tokens are encrypted before being persisted and decrypted only at runtime when dispatching Telegram requests.
 
-## Current Command Support
-
-The current refactored flow supports `send-all`.
-Other package scripts may exist in `package.json`, but they are not wired in this architecture yet.
-
-## Troubleshooting
-
-- `Missing Telegram API configuration`: set `BOT_TOKEN` or `TELEGRAM_API_URL`.
-- `CHAT_ID is required`: set `CHAT_ID` in `.env`.
-- `Bad Request: poll options length must not exceed 100`: handled automatically by split-message fallback.
-- `Bad Request: message is too long`: handled automatically by split-message fallback.
+API requests are also rate-limited and written to an audit log collection (`audit_logs`) with request metadata (method, path, status, user id/chat id if available, and API-key fingerprint).

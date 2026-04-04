@@ -4,10 +4,9 @@
   "description": "Send interactive quizzes to Telegram",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js send-all",
-    "send-buttons": "node index.js send-buttons",
-    "random": "node index.js send-random",
-    "listen": "node index.js listen"
+    "start": "node index.js api",
+    "send-all": "node index.js send-all",
+    "worker": "RUN_QUEUE_WORKER=true node index.js api"
   },
   "keywords": [
     "telegram",
@@ -19,7 +18,15 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.0",
+    "bullmq": "^5.8.1",
+    "cloudinary": "^2.5.1",
     "dotenv": "^17.4.0",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.3.2",
+    "form-data": "^4.0.5",
+    "ioredis": "^5.4.1",
+    "mongodb": "^7.1.1",
+    "multer": "^1.4.5-lts.1",
+    "streamifier": "^0.1.1"
   }
 }

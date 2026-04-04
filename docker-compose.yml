@@ -1,0 +1,25 @@
+services:
+  api:
+    build: .
+    container_name: telegram-quiz-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - RUN_QUEUE_WORKER=true
+      - PORT=3000
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: telegram-quiz-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
