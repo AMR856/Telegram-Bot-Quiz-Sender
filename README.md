@@ -6,19 +6,19 @@ A **scalable, multi-tenant API** for delivering Telegram quizzes and polls with 
 
 ---
 
-## 🎯 What This Does
+## What This Does
 
-- ✅ **Multi-tenant** — Each user has their own Telegram bot, chat, and image folder
-- ✅ **Image support** — Upload quiz images to Cloudinary; organize by user automatically
-- ✅ **Non-blocking sends** — Enqueue quiz batches in Redis; send in background
-- ✅ **Job tracking** — Poll status of queued jobs without waiting
-- ✅ **Rate limit safe** — Built-in delays between Telegram sends
-- ✅ **Audit logging** — Track all API requests for security/compliance
-- ✅ **Encrypted tokens** — Bot tokens encrypted at rest in MongoDB
+- **Multi-tenant** — Each user has their own Telegram bot, chat, and image folder
+- **Image support** — Upload quiz images to Cloudinary; organize by user automatically
+- **Non-blocking sends** — Enqueue quiz batches in Redis; send in background
+- **Job tracking** — Poll status of queued jobs without waiting
+- **Rate limit safe** — Built-in delays between Telegram sends
+- **Audit logging** — Track all API requests for security/compliance
+- **Encrypted tokens** — Bot tokens encrypted at rest in MongoDB
 
 ---
 
-## 📋 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -99,7 +99,7 @@ docker compose up --build
 
 ---
 
-## 🌐 API Endpoints
+## API Endpoints
 
 ### Authentication: Sign In
 
@@ -319,7 +319,7 @@ curl http://localhost:3000/jobs/job_abc123def456 \
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ### Request Flow
 
@@ -357,7 +357,7 @@ Background Worker
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 telegram-quiz-api/
@@ -398,7 +398,7 @@ telegram-quiz-api/
 
 ---
 
-## 🔐 Security
+## Security
 
 ### Token Encryption
 
@@ -428,7 +428,7 @@ Every API request is logged to MongoDB (`audit_logs` collection) with:
 
 ---
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Local Development
 
@@ -458,7 +458,7 @@ docker compose -f docker-compose.yml up -d
 
 ---
 
-## 🧪 Testing the API
+## Testing the API
 
 ### 1. Sign In
 
@@ -512,6 +512,42 @@ curl http://localhost:3000/jobs/YOUR_JOB_ID \
   -H "x-api-key: YOUR_API_KEY"
 ```
 
+---
+
+## Troubleshooting
+
+### "MONGODB_URI is required"
+Make sure `MONGODB_URI` is set in `.env` and MongoDB is running.
+
+```bash
+# Check if MongoDB is running (local)
+mongosh
+```
+
+### "Redis connection failed"
+Ensure Redis is running and `REDIS_URL` is correct.
+
+```bash
+# Check if Redis is running (local)
+redis-cli ping
+# Should return: PONG
+```
+
+### "Telegram API error: Unauthorized"
+- Verify `botToken` is correct (get from [@BotFather](https://t.me/botfather))
+- Ensure the bot is in the chat/channel
+- Token may have been revoked; regenerate with `/newtoken` in BotFather
+
+### "Failed to write audit log"
+Check MongoDB connection and that the `audit_logs` collection can be written to.
+
+### Images not uploading
+- Verify Cloudinary credentials in `.env`
+- Ensure `CLOUDINARY_CLOUD_NAME` matches your account
+- Check file is a valid image format (jpg, png, webp, gif)
+
+
+
 ## Legacy Mode (Single Bot)
 
 For backward compatibility, the service supports "send-all" mode where a single bot token is configured via environment variables. This mode reads quizzes from files and sends them all at once.
@@ -524,3 +560,5 @@ npm run send-all
 **This mode requires:**
 - `BOT_TOKEN`, `CHAT_ID`, `IS_CHANNEL`
 - `SUCCESS_LOG_FILE`, `FAILED_LOG_FILE`
+
+**Note:** Legacy mode is single-threaded and not recommended for production. Use API mode for new deployments.
