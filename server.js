@@ -1,7 +1,6 @@
 const express = require("express");
 
 const { createQuizQueue, createQuizWorker } = require("./queue");
-const { buildModulesRouter } = require("./lib/modules");
 const { buildSendQuizzesProcessor } = require("./lib/modules/quizzes/quizzes.job.service");
 const { connectMongo } = require("./lib/db/mongo");
 const { buildUpload } = require("./lib/config/upload");
@@ -11,7 +10,12 @@ const {
 } = require("./lib/config/rateLimit");
 const { buildAuditLogMiddleware } = require("./lib/middlewares/auditLog");
 const { errorHandler } = require("./lib/middlewares/errorHandler");
-const { createHttpError } = require("./lib/utils/httpError");
+const { createHttpError } = require("./lib/models/customError");
+const healthRouter = require("./lib/modules/health/health.route");
+const authRouter = require("./lib/modules/auth/auth.route");
+const { buildImagesRouter } = require("./lib/modules/images/images.route");
+const { buildQuizzesRouter } = require("./lib/modules/quizzes/quizzes.route");
+const { buildJobsRouter } = require("./lib/modules/jobs/jobs.route");
 
 const buildApiServer = async () => {
   await connectMongo();
@@ -27,7 +31,11 @@ const buildApiServer = async () => {
   app.use(globalRateLimiter);
   app.use("/auth", authRateLimiter);
   app.use(buildAuditLogMiddleware());
-  app.use(buildModulesRouter({ queue, upload }));
+  app.use(healthRouter);
+  app.use("/auth", authRouter);
+  app.use("/images", buildImagesRouter({ upload }));
+  app.use("/quizzes", buildQuizzesRouter({ queue }));
+  app.use("/jobs", buildJobsRouter({ queue }));
   app.use((req, res, next) => {
     next(createHttpError(404, "Route not found"));
   });

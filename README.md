@@ -1,168 +1,526 @@
-# Telegram Quiz API (Multi-Tenant)
+# Telegram Quiz API — Multi-Tenant Service
 
-This project is now an API service where each user can:
+A **scalable, multi-tenant API** for delivering Telegram quizzes and polls with image support. Each user brings their own Telegram bot and manages quiz distribution independently through a shared backend.
 
-- Sign in with their own Telegram bot token and chat ID.
-- Upload quiz images to Cloudinary.
-- Submit quiz objects to a background queue.
-- Track queued job status without blocking API requests.
+> **Key Feature**: Queue-based architecture prevents rate limiting and keeps API responses fast.
 
-Each user can have a different bot token and chat ID. Images are organized in a Cloudinary folder derived from chat ID by removing all dashes.
+---
 
-Example:
+## 🎯 What This Does
 
-- chat ID: -1003730571930
-- Cloudinary folder: 1003730571930
+- ✅ **Multi-tenant** — Each user has their own Telegram bot, chat, and image folder
+- ✅ **Image support** — Upload quiz images to Cloudinary; organize by user automatically
+- ✅ **Non-blocking sends** — Enqueue quiz batches in Redis; send in background
+- ✅ **Job tracking** — Poll status of queued jobs without waiting
+- ✅ **Rate limit safe** — Built-in delays between Telegram sends
+- ✅ **Audit logging** — Track all API requests for security/compliance
+- ✅ **Encrypted tokens** — Bot tokens encrypted at rest in MongoDB
 
-## Why Queue Was Added
+---
 
-Sending many quizzes can take time and can hit Telegram rate limits. The API now enqueues send operations in Redis/BullMQ so the HTTP request returns quickly while a worker sends quizzes in the background.
+## 📋 Quick Start
 
-## Requirements
+### Prerequisites
 
-- Node.js 18+
-- Redis (for queue)
-- Cloudinary account
+- **Node.js** 18+ ([download](https://nodejs.org/))
+- **Redis** ([install locally](https://redis.io/download) or use Docker)
+- **MongoDB** ([install locally](https://www.mongodb.com/try/download/community) or use MongoDB Atlas)
+- **Cloudinary account** ([free tier available](https://cloudinary.com/))
 
-## Environment Variables
+### 1. Clone & Install
 
-Create .env with:
+```bash
+git clone <your-repo>
+cd telegram-quiz-api
+npm install
+```
 
+### 2. Configure Environment
+
+Create a `.env` file in the root directory:
+
+```bash
+# Server
 PORT=3000
+NODE_ENV=development
+
+# Database
+MONGODB_URI=mongodb://127.0.0.1:27017/telegram_quiz_bot
+MONGODB_DB_NAME=telegram_quiz_bot  # Optional, extracted from URI if omitted
+
+# Queue (Redis)
 REDIS_URL=redis://127.0.0.1:6379
 RUN_QUEUE_WORKER=true
 
-MONGODB_URI=mongodb://127.0.0.1:27017/telegram_quiz_bot
-# Optional override if URI path has no DB name
-MONGODB_DB_NAME=telegram_quiz_bot
-# Required to encrypt bot tokens at rest in DB
-BOT_TOKEN_ENCRYPTION_KEY=replace_with_a_long_random_secret
-
-# API rate limit tuning
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX=120
-AUTH_RATE_LIMIT_WINDOW_MS=900000
-AUTH_RATE_LIMIT_MAX=20
-
+# Cloudinary (Image hosting)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-Legacy single-bot envs are still supported for send-all mode:
+# Security
+BOT_TOKEN_ENCRYPTION_KEY=your_long_random_secret_key_min_32_chars
 
-BOT_TOKEN=telegram_bot_token
+# API Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000      # 15 minutes
+RATE_LIMIT_MAX=120               # 120 requests per window
+AUTH_RATE_LIMIT_WINDOW_MS=900000 # Sign-in rate limit window
+AUTH_RATE_LIMIT_MAX=20           # 20 sign-ins per window
+
+# Legacy single-bot mode (optional, for backward compatibility)
+BOT_TOKEN=your_telegram_bot_token
 CHAT_ID=-1001234567890
 IS_CHANNEL=true
 SUCCESS_LOG_FILE=logs/send-success.log
 FAILED_LOG_FILE=logs/failed-messages.log
+```
 
-## Run Locally
+**Get these values:**
+- **Cloudinary**: Sign up at [cloudinary.com](https://cloudinary.com/), grab credentials from Dashboard
+- **MongoDB**: Local install or use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier)
+- **Redis**: Install via `brew install redis` (macOS) or Docker
+- **BOT_TOKEN_ENCRYPTION_KEY**: Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
-1. Install dependencies:
+### 3. Start the Server
 
-npm install
-
-2. Start API:
-
+**API mode** (recommended):
+```bash
 npm run start
+```
 
-3. Optional legacy mode (single bot env):
-
+**Legacy single-bot mode** (for backward compatibility):
+```bash
 npm run send-all
+```
 
-## API Endpoints
+**With Docker Compose** (includes Redis):
+```bash
+docker compose up --build
+```
 
-1. POST /auth/sign-in
+---
 
-Body:
+## 🌐 API Endpoints
 
+### Authentication: Sign In
+
+**Endpoint:** `POST /auth/sign-in`
+
+**Purpose:** Get an API key for subsequent requests. Each user signs in with their own Telegram bot credentials.
+
+**Request Body:**
+```json
 {
   "chatId": "-1003730571930",
-  "botToken": "123456:ABC",
+  "botToken": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
   "isChannel": true
 }
+```
 
-Response includes:
+| Field | Type | Description |
+|-------|------|-------------|
+| `chatId` | string or number | Telegram chat/channel ID (negative for channels) |
+| `botToken` | string | Telegram Bot API token (get from [@BotFather](https://t.me/botfather)) |
+| `isChannel` | boolean | `true` for channels, `false` for direct chats (default: `true`) |
 
-- apiKey (use this in x-api-key header)
-- user metadata
-- cloudinaryFolder
+**Response:**
+```json
+{
+  "apiKey": "key_abc123def456...",
+  "user": {
+    "id": "user_507f1f77bcf86cd799439011",
+    "chatId": "-1003730571930",
+    "cloudinaryFolder": "1003730571930"
+  },
+  "expiresIn": null
+}
+```
 
-2. POST /images/upload
+**cURL Example:**
+```bash
+curl -X POST http://localhost:3000/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chatId": "-1003730571930",
+    "botToken": "YOUR_BOT_TOKEN",
+    "isChannel": true
+  }'
+```
 
-- Auth required: x-api-key
-- multipart/form-data
-- field name: image
+**Save the `apiKey`** — you'll need it for all subsequent requests (in the `x-api-key` header).
 
-Response includes secureUrl and publicId.
+---
 
-3. POST /quizzes/send
+### Images: Upload to Cloudinary
 
-- Auth required: x-api-key
-- Body:
+**Endpoint:** `POST /images/upload`
 
+**Auth required:** `x-api-key` header
+
+**Purpose:** Upload a quiz image to Cloudinary. Images are automatically organized in a folder based on your chat ID.
+
+**Request:**
+```bash
+curl -X POST http://localhost:3000/images/upload \
+  -H "x-api-key: your_api_key_here" \
+  -F "image=@/path/to/quiz_image.jpg"
+```
+
+**Response:**
+```json
+{
+  "secureUrl": "https://res.cloudinary.com/your_cloud_name/image/upload/v1699564800/1003730571930/quiz_image.jpg",
+  "publicId": "1003730571930/quiz_image"
+}
+```
+
+**Use `publicId` in quiz objects** when sending quizzes (see next endpoint).
+
+---
+
+### Quizzes: Send Quiz Batch
+
+**Endpoint:** `POST /quizzes/send`
+
+**Auth required:** `x-api-key` header
+
+**Purpose:** Submit a batch of quizzes to be sent to your Telegram chat. Quizzes are enqueued and sent in the background; the API returns immediately with a job ID.
+
+**Request Body:**
+```json
 {
   "delayMs": 2000,
   "quizzes": [
     {
-      "question": "...",
-      "options": ["A", "B", "C", "D"],
+      "question": "What is the capital of France?",
+      "options": ["London", "Paris", "Berlin", "Madrid"],
       "correctAnswerId": 1,
-      "image": "images/1/my_public_id",
-      "explanation": "..."
+      "explanation": "Paris is the capital of France.",
+      "image": "1003730571930/my_quiz_image"
+    },
+    {
+      "question": "True or False?",
+      "options": ["True", "False"],
+      "correctAnswerId": 0
     }
   ]
 }
+```
 
-Notes on image/photo field:
+| Field | Type | Description |
+|-------|------|-------------|
+| `delayMs` | number | Milliseconds to wait between sending each quiz (default: 2000, prevents rate limiting) |
+| `quizzes` | array | Array of quiz objects |
+| `quizzes[].question` | string | The quiz question (required) |
+| `quizzes[].options` | array | 2–8 answer choices (required) |
+| `quizzes[].correctAnswerId` | number | Index of correct answer (0-based, required) |
+| `quizzes[].explanation` | string | Feedback shown after answering (optional) |
+| `quizzes[].image` | string | Image path or URL (optional, see image handling below) |
 
-- Full URL: used directly.
-- Cloudinary public ID/path: converted to Cloudinary URL using your cloud name and user folder.
-- In file-based legacy mode, local relative image paths are still supported.
+**Image Handling:**
 
-4. GET /jobs/:id
+The `image` field supports three formats:
 
-- Auth required: x-api-key
-- Returns queue job state and result.
+1. **Cloudinary public ID** (recommended)
+   ```json
+   "image": "1003730571930/quiz_image"
+   ```
+   Converted to: `https://res.cloudinary.com/your_cloud_name/image/upload/1003730571930/quiz_image`
 
-## Docker and Multi-User
+2. **Full URL** (external or Cloudinary)
+   ```json
+   "image": "https://example.com/quiz.jpg"
+   ```
+   Used as-is.
 
-Different bot tokens/chat IDs do not require Docker by themselves.
+3. **Local file path** (legacy, file-based mode only)
+   ```json
+   "image": "./images/quiz.jpg"
+   ```
+   Resolved relative to file system. **Not supported in API mode.**
 
-Docker is recommended when you want:
+**Response:**
+```json
+{
+  "jobId": "job_abc123def456",
+  "status": "queued",
+  "count": 2
+}
+```
 
-- Easy deployment
-- Redis + API in one stack
-- Horizontal scaling (multiple API/worker instances)
+**cURL Example:**
+```bash
+curl -X POST http://localhost:3000/quizzes/send \
+  -H "x-api-key: your_api_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delayMs": 1500,
+    "quizzes": [
+      {
+        "question": "Which planet is closest to the Sun?",
+        "options": ["Venus", "Mercury", "Earth", "Mars"],
+        "correctAnswerId": 1,
+        "explanation": "Mercury is the closest planet to the Sun."
+      }
+    ]
+  }'
+```
 
-Run with Docker Compose:
+---
 
+### Jobs: Check Status
+
+**Endpoint:** `GET /jobs/:jobId`
+
+**Auth required:** `x-api-key` header
+
+**Purpose:** Check the status of a queued job (e.g., whether quizzes have finished sending).
+
+**Response:**
+
+Queued:
+```json
+{
+  "id": "job_abc123def456",
+  "state": "waiting",
+  "progress": null,
+  "result": null
+}
+```
+
+In progress:
+```json
+{
+  "id": "job_abc123def456",
+  "state": "active",
+  "progress": 1,
+  "result": null
+}
+```
+
+Completed:
+```json
+{
+  "id": "job_abc123def456",
+  "state": "completed",
+  "progress": 2,
+  "result": {
+    "sent": 2,
+    "failed": 0,
+    "errors": []
+  }
+}
+```
+
+**cURL Example:**
+```bash
+curl http://localhost:3000/jobs/job_abc123def456 \
+  -H "x-api-key: your_api_key_here"
+```
+
+---
+
+## 🏗️ Architecture
+
+### Request Flow
+
+```
+User API Request
+        ↓
+  Authentication (x-api-key)
+        ↓
+  Rate Limiting
+        ↓
+  Route Handler
+        ↓
+  Enqueue to Redis
+        ↓
+  Return Job ID (fast)
+        ↓
+Background Worker
+        ↓
+  Process Job
+        ↓
+  Send to Telegram
+        ↓
+  Update Job Status
+```
+
+### Key Components
+
+| Component | Purpose |
+|-----------|---------|
+| **API Server** | Handles HTTP requests, auth, rate limiting |
+| **Redis Queue** | BullMQ queue for job management |
+| **Worker** | Background process that sends quizzes to Telegram |
+| **MongoDB** | Stores users, bot tokens (encrypted), audit logs |
+| **Cloudinary** | Image hosting and CDN |
+
+---
+
+## 📁 Project Structure
+
+```
+telegram-quiz-api/
+├── index.js                                 # Entrypoint (API + legacy mode)
+├── server.js                                # API server setup
+├── queue.js                                 # BullMQ queue and worker
+├── .env.example                             # Environment template
+├── docker-compose.yml                       # Docker setup
+├── package.json
+│
+├── lib/
+│   ├── api/
+│   │   ├── routes/
+│   │   │   └── apiRoutes.js                # API endpoints
+│   │   ├── middleware/
+│   │   │   ├── auth.js                     # API key authentication
+│   │   │   └── rateLimit.js                # Rate limiting
+│   │   └── services/
+│   │       ├── telegramAuthService.js      # Verify bot token
+│   │       └── quizJobService.js           # Queue job management
+│   │
+│   ├── integrations/
+│   │   ├── cloudinaryClient.js             # Cloudinary uploads
+│   │   └── telegramClient.js               # Telegram API wrapper
+│   │
+│   ├── quiz/
+│   │   ├── quizDispatchService.js          # Send queued quizzes
+│   │   ├── quizSender.js                   # Telegram send logic
+│   │   └── quizBot.js                      # Legacy send-all
+│   │
+│   └── models/
+│       └── userStore.js                    # User persistence
+│
+└── utils/
+    ├── quizMedia.js                        # Media normalization
+    └── auditStore.js                       # Audit logging
+```
+
+---
+
+## 🔐 Security
+
+### Token Encryption
+
+Bot tokens are encrypted at rest in MongoDB using `BOT_TOKEN_ENCRYPTION_KEY`. Tokens are decrypted only at runtime when sending Telegram requests.
+
+**Generate a secure key:**
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### Rate Limiting
+
+All API endpoints are rate-limited to prevent abuse:
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| General APIs | 120 requests | 15 minutes |
+| `/auth/sign-in` | 20 requests | 15 minutes |
+
+### Audit Logging
+
+Every API request is logged to MongoDB (`audit_logs` collection) with:
+- Request method, path, status code
+- User ID and chat ID (if authenticated)
+- Client IP and user agent
+- API key fingerprint
+
+---
+
+## 🐳 Docker Deployment
+
+### Local Development
+
+```bash
 docker compose up --build
+```
 
 This starts:
+- **API** on `http://localhost:3000`
+- **Redis** on `localhost:6379`
+- **MongoDB** on `localhost:27017`
 
-- API on port 3000
-- Redis on port 6379
+### Production Deployment
 
-## Project Structure
+Update `docker-compose.yml` with external MongoDB/Redis connections:
 
-- index.js: entrypoint (API mode + legacy mode)
-- server.js: API server composition
-- lib/api/routes/apiRoutes.js: API route handlers
-- lib/api/middleware/auth.js: API key auth
-- lib/api/services/telegramAuthService.js: Telegram token verification
-- lib/api/services/quizJobService.js: queue job orchestration and status loading
-- queue.js: BullMQ queue/worker setup
-- lib/integrations/cloudinaryClient.js: Cloudinary upload helper
-- lib/integrations/telegramClient.js: Telegram API wrapper
-- lib/quiz/quizDispatchService.js: send queued quizzes for a user
-- lib/quiz/quizSender.js: Telegram quiz send logic
-- lib/quiz/quizBot.js: legacy send-all orchestration
-- utils/userStore.js: persistent user store
-- utils/quizMedia.js: media normalization for Cloudinary/local URLs
+```yaml
+environment:
+  MONGODB_URI: mongodb+srv://user:pass@cluster.mongodb.net/telegram_quiz_bot
+  REDIS_URL: redis://redis-host:6379
+```
 
-## Security Note
+Then:
+```bash
+docker compose -f docker-compose.yml up -d
+```
 
-Users are stored in MongoDB. Bot tokens are encrypted before being persisted and decrypted only at runtime when dispatching Telegram requests.
+---
 
-API requests are also rate-limited and written to an audit log collection (`audit_logs`) with request metadata (method, path, status, user id/chat id if available, and API-key fingerprint).
+## 🧪 Testing the API
+
+### 1. Sign In
+
+```bash
+curl -X POST http://localhost:3000/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chatId": "-1003730571930",
+    "botToken": "YOUR_BOT_TOKEN",
+    "isChannel": true
+  }'
+```
+
+Copy the `apiKey` from the response.
+
+### 2. Upload an Image
+
+```bash
+curl -X POST http://localhost:3000/images/upload \
+  -H "x-api-key: YOUR_API_KEY" \
+  -F "image=@/path/to/image.jpg"
+```
+
+Copy the `publicId` from the response.
+
+### 3. Send a Quiz
+
+```bash
+curl -X POST http://localhost:3000/quizzes/send \
+  -H "x-api-key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delayMs": 2000,
+    "quizzes": [
+      {
+        "question": "Test question?",
+        "options": ["A", "B"],
+        "correctAnswerId": 0,
+        "image": "YOUR_PUBLIC_ID"
+      }
+    ]
+  }'
+```
+
+Copy the `jobId` from the response.
+
+### 4. Check Job Status
+
+```bash
+curl http://localhost:3000/jobs/YOUR_JOB_ID \
+  -H "x-api-key: YOUR_API_KEY"
+```
+
+## Legacy Mode (Single Bot)
+
+For backward compatibility, the service supports "send-all" mode where a single bot token is configured via environment variables. This mode reads quizzes from files and sends them all at once.
+
+**Run legacy mode:**
+```bash
+npm run send-all
+```
+
+**This mode requires:**
+- `BOT_TOKEN`, `CHAT_ID`, `IS_CHANNEL`
+- `SUCCESS_LOG_FILE`, `FAILED_LOG_FILE`

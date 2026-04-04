@@ -1,7 +1,8 @@
 require("dotenv").config();
 
-const { QuizBot } = require("./lib/quiz/quizBot");
+const { QuizBot } = require("./lib/models/quizBot");
 const { buildApiServer } = require("./server");
+const { logger } = require("./lib/logging/logger");
 
 const {
   IS_CHANNEL: IS_CHANNEL_ENV,
@@ -37,12 +38,12 @@ async function runLegacySendAll() {
 
   const quizzes = await bot.loadQuizzes("data/quizzes.json");
 
-  console.log(`Mode: ${IS_CHANNEL ? "CHANNEL" : "GROUP/DM"} posting\n`);
+  logger.info(`Mode: ${IS_CHANNEL ? "CHANNEL" : "GROUP/DM"} posting`);
 
   const command = process.argv[2] || "send-all";
 
   if (command !== "send-all") {
-    console.log("Invalid command. Use 'send-all' to send all quizzes.");
+    logger.warn("Invalid command. Use 'send-all' to send all quizzes.");
     return;
   }
 
@@ -56,7 +57,7 @@ async function runApi() {
   const serverPort = Number(PORT || 3000);
 
   app.listen(serverPort, () => {
-    console.log(`API running on port ${serverPort}`);
+    logger.info(`API running on port ${serverPort}`);
   });
 }
 
@@ -71,4 +72,6 @@ async function main() {
   await runApi();
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  logger.error(error.stack || error.message || String(error));
+});
