@@ -1,35 +1,35 @@
 const express = require("express");
 
-const { createQuizWorker } = require("./queue");
-const {
-  buildSendQuizzesProcessor,
-} = require("./lib/modules/quizzes/quizzes.job.service");
-const { connectMongo } = require("./lib/db/mongo");
+const { QuizQueueManager } = require("./lib/config/queue");
+const { quizProcesser } = require("./lib/modules/quizzes/quizzes.job.service");
+const { MongoConnection } = require("./lib/config/mongo");
 const { RateLimiters } = require("./lib/config/rateLimit");
-const { buildAuditLogMiddleware } = require("./lib/middlewares/auditLog");
+const { auditLog } = require("./lib/logging/auditLog");
 const { errorHandler } = require("./lib/utils/errorHandler");
 const { healthRouter } = require("./lib/modules/health/health.route");
 const { authRouter } = require("./lib/modules/auth/auth.route");
 const { imageRouter } = require("./lib/modules/images/images.route");
 const { jobsRouter } = require("./lib/modules/jobs/jobs.route");
-const { buildQuizzesRouter } = require("./lib/modules/quizzes/quizzes.route");
-const { CustomError } = require("./lib/models/customError");
-const HttpStatusMessages = require("./lib/models/httpStatusMessages");
+const { quizzesRouter } = require("./lib/modules/quizzes/quizzes.route");
+const { CustomError } = require("./lib/core/customError");
+const HttpStatusMessages = require("./lib/core/httpStatusMessages");
 
 const buildApiServer = async () => {
-  await connectMongo();
+  await MongoConnection.connect();
+  const queue = QuizQueueManager.getQueue();
 
   const app = express();
+  app.locals.queue = queue;
 
   app.use(express.json({ limit: "2mb" }));
   app.use(RateLimiters.globalErrorLimiter);
   app.use("/auth", RateLimiters.authRateLimiter);
-  app.use(buildAuditLogMiddleware());
+  app.use(auditLog);
   app.use("/health", healthRouter);
   app.use("/auth", authRouter);
   app.use("/images", imageRouter);
   app.use("/jobs", jobsRouter);
-  app.use("/quizzes", buildQuizzesRouter({ queue }));
+  app.use("/quizzes", quizzesRouter);
   app.use((req, res, next) => {
     next(
       new CustomError(404, "Route not found", {
@@ -46,11 +46,7 @@ const buildApiServer = async () => {
       return null;
     }
 
-    return createQuizWorker(
-      buildSendQuizzesProcessor({
-        cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      }),
-    );
+    return QuizQueueManager.createWorker(quizProcesser);
   };
 
   return {

@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { QuizBot } = require("./lib/models/quizBot");
+const { QuizBot } = require("./lib/services/quizBot");
 const { buildApiServer } = require("./server");
 const { logger } = require("./lib/logging/logger");
 
