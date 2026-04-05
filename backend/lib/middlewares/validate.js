@@ -7,6 +7,7 @@ const validate = (schema) => (req, res, next) => {
     if (schema.params) res.locals.params = schema.params.parse(req.params);
     if (schema.query) res.locals.query = schema.query.parse(req.query);
     if (schema.file) res.locals.file = schema.file.parse(req.file);
+    if (schema.files) res.locals.files = schema.files.parse(req.files);
 
     next();
   } catch (err) {

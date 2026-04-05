@@ -12,6 +12,16 @@ class ImageValidationSchema {
       value.originalname.trim().length > 0
     );
   }, "image file is required");
+
+  static listQuery = z.object({
+    limit: z.coerce.number().int().min(1).max(100).default(30),
+    nextCursor: z.string().trim().min(1).optional(),
+  });
+
+  static uploadFiles = z
+    .array(this.uploadFile)
+    .min(1, "at least one image file is required")
+    .max(10, "you can upload up to 10 images at once");
 }
 
 module.exports = { ImageValidationSchema };

@@ -7,12 +7,27 @@ const UploadConfig = require("../../config/upload");
 
 const imageRouter = express.Router();
 
+imageRouter.get(
+  "/",
+  authMiddleware,
+  validate({ query: ImageValidationSchema.listQuery }),
+  ImageController.list,
+);
+
 imageRouter.post(
   "/upload",
   authMiddleware,
   UploadConfig.single("image"),
   validate({ file: ImageValidationSchema.uploadFile }),
   ImageController.upload,
+);
+
+imageRouter.post(
+  "/upload-many",
+  authMiddleware,
+  UploadConfig.array("images", 10),
+  validate({ files: ImageValidationSchema.uploadFiles }),
+  ImageController.uploadMany,
 );
 
 module.exports = { imageRouter };

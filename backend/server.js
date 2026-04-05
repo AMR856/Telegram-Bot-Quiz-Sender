@@ -1,5 +1,6 @@
 const express = require("express");
-
+const path = require("path");
+const cors = require("cors");
 const { QuizQueueManager } = require("./lib/config/queue");
 const { quizProcesser } = require("./lib/modules/quizzes/quizzes.job.service");
 const { MongoConnection } = require("./lib/config/mongo");
@@ -17,11 +18,25 @@ const HttpStatusMessages = require("./lib/core/httpStatusMessages");
 const buildApiServer = async () => {
   await MongoConnection.connect();
   const queue = QuizQueueManager.getQueue();
+  const frontendDir = path.resolve(__dirname, "../frontend");
 
   const app = express();
   app.locals.queue = queue;
-
+  const allowedOrigins = ["http://localhost:5500", "http://localhost:3000"];
   app.use(express.json({ limit: "2mb" }));
+  app.use(express.static(frontendDir));
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+        else
+          callback(
+            new CustomError("Not allowed by CORS", 403, HttpStatusText.FAIL),
+          );
+      },
+      credentials: true,
+    }),
+  );
   app.use(RateLimiters.globalErrorLimiter);
   app.use("/auth", RateLimiters.authRateLimiter);
   app.use(auditLog);

@@ -58,9 +58,28 @@ class CloudinaryClient {
       streamifier.createReadStream(buffer).pipe(uploadStream);
     });
   };
+
+  static listImagesByChatId = async ({
+    chatId,
+    maxResults = 30,
+    nextCursor,
+  }) => {
+    this.#ensureCloudinaryConfigured();
+
+    const folder = ChatFolderResolver.resolveFolderName(chatId);
+
+    return cloudinary.api.resources({
+      type: "upload",
+      resource_type: "image",
+      prefix: `${folder}/`,
+      max_results: maxResults,
+      next_cursor: nextCursor,
+    });
+  };
 }
 
 module.exports = {
   CloudinaryClient,
   uploadBufferToCloudinary: CloudinaryClient.uploadBufferToCloudinary,
+  listImagesByChatId: CloudinaryClient.listImagesByChatId,
 };
