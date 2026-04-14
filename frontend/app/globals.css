@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #020617;
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1B2436;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2E4A7D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00E0FF;
+}
+
+/* Animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(0, 200, 150, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 200, 150, 0.8);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slide-down 0.4s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 224, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+}
+
+/* Card Styles */
+.card {
+  background: #0f172a;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 1px solid rgba(46, 74, 125, 0.3);
+}
+
+.card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px rgba(0, 224, 255, 0.2);
+  border-color: rgba(0, 224, 255, 0.5);
+}
+
+/* Button Styles */
+.button-primary {
+  background: linear-gradient(to right, #2E4A7D, #00E0FF);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 0.55rem 0.7rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+
+.button-primary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.button-primary:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.button-primary:hover {
+  box-shadow: 0 0 20px rgba(0, 224, 255, 0.5);
+  transform: scale(1.05);
+}
+
+.button-primary:active {
+  transform: scale(0.98);
+}
+
+/* Input Styles */
+input[type="text"],
+input[type="password"],
+textarea {
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(0, 224, 255, 0.2);
+}
+
+/* File Input Styles */
+input[type="file"]::file-selector-button {
+  transition: all 0.3s ease;
+}
+
+input[type="file"]::file-selector-button:hover {
+  transform: scale(1.05);
+}
+
+/* Tab Styles */
+.tab-active {
+  position: relative;
+}
+
+.tab-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, #00E0FF, #0099FF);
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Image Gallery Styles */
+.image-gallery-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.image-gallery-item:hover {
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: 0 10px 30px rgba(0, 224, 255, 0.3);
+}
+
+/* Loading Spinner */
+.spinner {
+  border: 3px solid rgba(0, 224, 255, 0.1);
+  border-top: 3px solid #00E0FF;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Toast Notification */
+.toast {
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* Glassmorphism Effect */
+.glass {
+  background: rgba(27, 36, 54, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(to right, #00E0FF, #0099FF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth Transitions */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
