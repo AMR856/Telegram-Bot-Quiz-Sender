@@ -60,7 +60,7 @@ export const buildApiServer = async (): Promise<ApiServer> => {
     }),
   );
 
-  app.use(RateLimiters.globalErrorLimiter);
+  // app.use(RateLimiters.globalErrorLimiter);
   app.use("/auth", RateLimiters.authRateLimiter);
   app.use(auditLog);
 
