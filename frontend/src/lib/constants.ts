@@ -11,7 +11,8 @@ export const SAMPLE_QUIZ: QuizQuestion[] = [
 
 export const SAMPLE_QUIZ_JSON = JSON.stringify(SAMPLE_QUIZ, null, 2)
 
-export const DEFAULT_BACKEND_URL = 'http://localhost:3000'
+export const DEFAULT_BACKEND_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000'
 export const DEFAULT_IMAGES_LIMIT = '30'
 export const DEFAULT_DELAY_MS = 1000
 export const HEALTH_CHECK_INTERVAL = 5000

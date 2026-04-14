@@ -1,10 +1,13 @@
 import { ApiResponse } from '@/types'
 
+const FALLBACK_API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000'
+
 class ApiClient {
-  private baseUrl: string = 'http://localhost:3000'
+  private baseUrl: string = FALLBACK_API_BASE_URL
 
   setBaseUrl(url: string): void {
-    this.baseUrl = (url || '').trim() || 'http://localhost:3000'
+    this.baseUrl = (url || '').trim() || FALLBACK_API_BASE_URL
   }
 
   async request<T = unknown>(
