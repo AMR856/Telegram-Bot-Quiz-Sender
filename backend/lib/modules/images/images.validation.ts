@@ -22,4 +22,8 @@ export class ImageValidationSchema {
     .array(this.uploadFile)
     .min(1, "at least one image file is required")
     .max(10, "you can upload up to 10 images at once");
+
+  public static deleteParams = z.object({
+    publicId: z.string().trim().min(1, "publicId is required"),
+  });
 }

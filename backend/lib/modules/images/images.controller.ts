@@ -46,4 +46,18 @@ export class ImageController {
       next(err);
     }
   }
+
+  public static async delete(req, res, next) {
+    try {
+      const { publicId } = res.locals.params || req.params;
+      const data = await ImageService.delete({ publicId, user: req.user });
+
+      res.status(200).json({
+        status: HTTPStatusText.SUCCESS,
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
 }

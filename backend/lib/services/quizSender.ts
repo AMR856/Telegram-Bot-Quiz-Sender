@@ -13,6 +13,7 @@ interface TelegramApiError {
   response?: {
     status: number;
     data?: {
+      description?: string;
       parameters?: {
         retry_after?: number | string;
       };
@@ -89,21 +90,15 @@ export class QuizSender {
     const preparedQuiz = this.prepareQuiz(quiz);
     const quizPhoto = quiz.photo || quiz.image;
 
-    try {
-      if (quizPhoto) {
-        await this.telegramClient.sendPhoto(chatId, quizPhoto);
-        await this.sleep(500);
-      }
+    if (quizPhoto) {
+      await this.telegramClient.sendPhoto(chatId, quizPhoto);
+      await this.sleep(500);
+    }
 
-      if (preparedQuiz.needsSplitMessage) {
-        await this.sendSplitQuiz(chatId, quiz, preparedQuiz);
-      } else {
-        await this.sendInlineQuiz(chatId, quiz, preparedQuiz);
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to send quiz: ${errorMessage}`);
+    if (preparedQuiz.needsSplitMessage) {
+      await this.sendSplitQuiz(chatId, quiz, preparedQuiz);
+    } else {
+      await this.sendInlineQuiz(chatId, quiz, preparedQuiz);
     }
   }
 
@@ -149,9 +144,7 @@ export class QuizSender {
 
           // Handle rate limiting (429 Too Many Requests)
           if (apiError.response?.status === 429) {
-            const retryAfterSeconds = this.parseRetryAfter(
-              apiError.response?.data?.parameters?.retry_after
-            );
+            const retryAfterSeconds = this.parseRetryAfter(apiError);
 
             LoggerService.warn(
               `Rate limited (429). Waiting ${retryAfterSeconds}s before retrying quiz ${index + 1}/${quizzes.length}`
@@ -317,14 +310,25 @@ export class QuizSender {
   /**
    * Parse retry_after from Telegram API error response
    */
-  private parseRetryAfter(retryAfter: unknown): number {
-    if (typeof retryAfter === "number") {
+  private parseRetryAfter(error: TelegramApiError): number {
+    const retryAfter = error.response?.data?.parameters?.retry_after;
+
+    if (typeof retryAfter === "number" && retryAfter > 0) {
       return retryAfter;
     }
 
     if (typeof retryAfter === "string") {
       const parsed = Number(retryAfter);
-      if (!isNaN(parsed)) {
+      if (!isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+
+    const description = String(error.response?.data?.description || "");
+    const match = description.match(/retry after\s+(\d+)/i);
+    if (match && match[1]) {
+      const parsed = Number(match[1]);
+      if (!isNaN(parsed) && parsed > 0) {
         return parsed;
       }
     }

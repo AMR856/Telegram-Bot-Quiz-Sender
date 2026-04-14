@@ -10,8 +10,8 @@ export const imageRouter = express.Router();
 imageRouter.post(
   "/upload",
   authMiddleware,
-  validate({ file: ImageValidationSchema.uploadFile }),
   UploadConfig.single("file"),
+  validate({ file: ImageValidationSchema.uploadFile }),
   ImageController.upload,
 );
 
@@ -21,5 +21,13 @@ imageRouter.post(
   "/upload-many",
   authMiddleware,
   UploadConfig.array("files", 20),
+  validate({ files: ImageValidationSchema.uploadFiles }),
   ImageController.uploadMany,
+);
+
+imageRouter.delete(
+  "/:publicId(*)",
+  authMiddleware,
+  validate({ params: ImageValidationSchema.deleteParams }),
+  ImageController.delete,
 );

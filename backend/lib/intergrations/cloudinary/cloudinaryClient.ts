@@ -20,6 +20,10 @@ interface UploadParams {
   originalName: string;
 }
 
+interface DeleteParams {
+  publicId: string;
+}
+
 export class CloudinaryClient {
   private static instance: CloudinaryClient | null = null;
   private static configured: boolean = false;
@@ -62,6 +66,9 @@ export class CloudinaryClient {
           use_filename: true,
           unique_filename: true,
           filename_override: originalName,
+          context: {
+            original_name: originalName,
+          },
         },
         (error, result) => {
           if (error) {
@@ -99,10 +106,23 @@ export class CloudinaryClient {
       prefix: `${folder}/`,
       max_results: maxResults,
       next_cursor: nextCursor,
+      context: true,
+    });
+  };
+
+  public static deleteImageByPublicId = async ({
+    publicId,
+  }: DeleteParams): Promise<{ result: string }> => {
+    this.ensureCloudinaryConfigured();
+
+    return cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
     });
   };
 }
 
 export const uploadBufferToCloudinary = CloudinaryClient.uploadBufferToCloudinary;
 export const listImagesByChatId = CloudinaryClient.listImagesByChatId;
+export const deleteImageByPublicId = CloudinaryClient.deleteImageByPublicId;
 
