@@ -1,25 +1,25 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import path from "path";
 import cors from "cors";
-import { QuizQueueManager } from "./lib/config/queue";
-import { quizProcesser } from "./lib/modules/quizzes/quizzes.job.service";
-import { MongoConnection } from "./lib/config/mongo";
-import { RateLimiters } from "./lib/config/rateLimit";
-import { healthRouter } from "./lib/modules/health/health.route";
-import { imageRouter } from "./lib/modules/images/images.route";
-import { jobsRouter } from "./lib/modules/jobs/jobs.route";
-import { quizzesRouter } from "./lib/modules/quizzes/quizzes.route";
-import CustomError from "./lib/utils/customError";
-import { HTTPStatusText } from "./lib/types/httpStatusText";
+import { QuizQueueManager } from "./src/config/queue";
+import { quizProcesser } from "./src/modules/quizzes/quizzes.job.service";
+import { MongoConnection } from "./src/config/mongo";
+import { RateLimiters } from "./src/config/rateLimit";
+import { healthRouter } from "./src/modules/health/health.route";
+import { imageRouter } from "./src/modules/images/images.route";
+import { jobsRouter } from "./src/modules/jobs/jobs.route";
+import { quizzesRouter } from "./src/modules/quizzes/quizzes.route";
+import CustomError from "./src/utils/customError";
+import { HTTPStatusText } from "./src/types/httpStatusText";
 
 interface ApiServer {
   app: Application;
   runWorker: () => any | null;
 }
 
-import { authRouter } from "./lib/modules/auth/auth.route";
-import { auditLog } from "./lib/middlewares/auditLog";
-import { errorHandler } from "./lib/utils/errorHandler";
+import { authRouter } from "./src/modules/auth/auth.route";
+import { auditLog } from "./src/middlewares/auditLog";
+import { errorHandler } from "./src/utils/errorHandler";
 
 export const buildApiServer = async (): Promise<ApiServer> => {
   await MongoConnection.connect();

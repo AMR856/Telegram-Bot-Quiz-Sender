@@ -1,5 +1,5 @@
-import { QuizBot } from "./lib/services/quizBot";
-import { logger } from "./lib/utils/logger";
+import { QuizBot } from "./src/services/quizBot";
+import { logger } from "./src/utils/logger";
 import { buildApiServer } from "./server";
 
 require("dotenv").config();
