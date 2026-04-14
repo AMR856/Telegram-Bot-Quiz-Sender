@@ -72,6 +72,9 @@ CHAT_ID=-1001234567890
 IS_CHANNEL=true
 SUCCESS_LOG_FILE=logs/send-success.log
 FAILED_LOG_FILE=logs/failed-messages.log
+
+# Frontend -> Backend base URL (for cloud deployment)
+NEXT_PUBLIC_API_BASE_URL=https://your-backend-domain.com
 ```
 
 **Get these values:**
