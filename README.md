@@ -97,6 +97,47 @@ npm run send-all
 docker compose up --build
 ```
 
+### 4. Deploy to Heroku
+
+This branch is ready for Heroku with:
+- `Procfile` at repo root using `web: npm start`
+- `heroku-postbuild` script to compile TypeScript before runtime
+
+Recommended setup:
+
+1. Create app and set buildpack
+```bash
+heroku create <your-app-name>
+heroku buildpacks:set heroku/nodejs
+```
+
+2. Provision required add-ons
+```bash
+heroku addons:create heroku-redis:mini
+```
+
+Use MongoDB Atlas and Cloudinary as external services.
+
+3. Configure required env vars
+```bash
+heroku config:set \
+  NODE_ENV=production \
+  RUN_QUEUE_WORKER=true \
+  BOT_TOKEN_ENCRYPTION_KEY=<your-secret> \
+  MONGODB_URI=<your-mongodb-uri> \
+  MONGODB_DB_NAME=telegram_quiz_bot \
+  REDIS_URL=<heroku-redis-url> \
+  CLOUDINARY_CLOUD_NAME=<cloud-name> \
+  CLOUDINARY_API_KEY=<api-key> \
+  CLOUDINARY_API_SECRET=<api-secret>
+```
+
+4. Deploy
+```bash
+git push heroku <branch-name>:main
+heroku logs --tail
+```
+
 ---
 
 ## API Endpoints

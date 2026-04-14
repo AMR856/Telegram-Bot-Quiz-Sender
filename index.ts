@@ -27,7 +27,13 @@ async function runLegacySendAll() {
       "Missing Telegram API configuration. Set BOT_TOKEN or TELEGRAM_API_URL in .env",
     );
   }
-
+  if (!CHAT_ID) {
+    throw new Error("Missing CHAT_ID in .env");
+  }
+  if (!CLOUDINARY_CLOUD_NAME) {
+    throw new Error("Missing CLOUDINARY_CLOUD_NAME in .env");
+  }
+  
   const bot = new QuizBot({
     chatId: CHAT_ID,
     baseUrl: TELEGRAM_API_BASE_URL,
