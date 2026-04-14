@@ -2,11 +2,13 @@
   "name": "telegram-quiz-bot",
   "version": "1.0.0",
   "description": "Send interactive quizzes to Telegram",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node index.js api",
-    "send-all": "node index.js send-all",
-    "worker": "RUN_QUEUE_WORKER=true node index.js api"
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx index.ts api",
+    "start": "node dist/index.js api",
+    "send-all": "node dist/index.js send-all",
+    "worker": "RUN_QUEUE_WORKER=true node dist/index.js api"
   },
   "keywords": [
     "telegram",
@@ -31,5 +33,13 @@
     "streamifier": "^0.1.1",
     "winston": "^3.17.0",
     "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.13.10",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.2"
   }
 }
