@@ -1,11 +1,13 @@
+import { Request, Response, NextFunction } from "express";
 import { HTTPStatusText } from "../../types/httpStatusText";
 import { ImageService } from "./images.service";
 
 export class ImageController {
-  public static async upload(req, res, next) {
+  public static async upload(req: Request, res: Response, next: NextFunction) {
     try {
       const file = res.locals.file || req.file;
-      const data = await ImageService.upload({ file, user: req.user });
+      const user = res.locals.user;
+      const data = await ImageService.upload({ file, user: user });
       res.status(201).json({
         status: HTTPStatusText.SUCCESS,
         data,
@@ -15,11 +17,12 @@ export class ImageController {
     }
   }
 
-  public static async list(req, res, next) {
+  public static async list(req: Request, res: Response, next: NextFunction) {
     try {
       const { limit, nextCursor } = res.locals.query || req.query;
+      const user = res.locals.user;
       const data = await ImageService.list({
-        user: req.user,
+        user,
         limit,
         nextCursor,
       });
@@ -33,10 +36,15 @@ export class ImageController {
     }
   }
 
-  public static async uploadMany(req, res, next) {
+  public static async uploadMany(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const files = res.locals.files || req.files;
-      const data = await ImageService.uploadMany({ files, user: req.user });
+      const user = res.locals.user;
+      const data = await ImageService.uploadMany({ files, user });
 
       res.status(201).json({
         status: HTTPStatusText.SUCCESS,
@@ -47,10 +55,11 @@ export class ImageController {
     }
   }
 
-  public static async delete(req, res, next) {
+  public static async delete(req: Request, res: Response, next: NextFunction) {
     try {
       const { publicId } = res.locals.params || req.params;
-      const data = await ImageService.delete({ publicId, user: req.user });
+      const user = res.locals.user;
+      const data = await ImageService.delete({ publicId, user });
 
       res.status(200).json({
         status: HTTPStatusText.SUCCESS,

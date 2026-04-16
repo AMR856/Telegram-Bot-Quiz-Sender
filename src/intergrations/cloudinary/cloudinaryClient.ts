@@ -122,7 +122,7 @@ export class CloudinaryClient {
   };
 }
 
-export const uploadBufferToCloudinary = CloudinaryClient.uploadBufferToCloudinary;
+export const uploadBufferToCloudinary =
+  CloudinaryClient.uploadBufferToCloudinary;
 export const listImagesByChatId = CloudinaryClient.listImagesByChatId;
 export const deleteImageByPublicId = CloudinaryClient.deleteImageByPublicId;
-

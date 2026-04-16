@@ -3,6 +3,7 @@ import { HTTPStatusText } from "../types/httpStatusText";
 
 export const validate = (schema) => (req, res, next) => {
   try {
+    // Parse and validate the request data based on the provided schema
     if (schema.body) res.locals.body = schema.body.parse(req.body);
     if (schema.params) res.locals.params = schema.params.parse(req.params);
     if (schema.query) res.locals.query = schema.query.parse(req.query);

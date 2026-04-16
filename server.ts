@@ -19,6 +19,7 @@ interface ApiServer {
 
 import { authRouter } from "./src/modules/auth/auth.route";
 import { auditLog } from "./src/middlewares/auditLog";
+import { startHealthPublisher } from "./src/modules/health/health.service";
 import { errorHandler } from "./src/utils/errorHandler";
 
 export const buildApiServer = async (): Promise<ApiServer> => {
@@ -76,6 +77,8 @@ export const buildApiServer = async (): Promise<ApiServer> => {
 
   app.use(errorHandler);
 
+  startHealthPublisher();
+
   const runWorker = () => {
     const shouldRunWorker =
       String(process.env.RUN_QUEUE_WORKER || "true").toLowerCase() !== "false";
@@ -92,3 +95,65 @@ export const buildApiServer = async (): Promise<ApiServer> => {
     runWorker,
   };
 };
+
+// Project Structure:
+// │   ├── mongo.ts
+// │   ├── queue.ts
+// │   ├── rateLimit.ts
+// │   └── upload.ts
+// ├── intergrations
+// │   ├── cloudinary
+// │   │   └── cloudinaryClient.ts
+// │   └── telegram
+// │       ├── telegramAuth.ts
+// │       └── telegramClient.ts
+// ├── middlewares
+// │   ├── auditLog.ts
+// │   ├── auth.ts
+// │   └── validate.ts
+// ├── modules
+// │   ├── auth
+// │   │   ├── auth.controller.ts
+// │   │   ├── auth.model.ts
+// │   │   ├── auth.route.ts
+// │   │   ├── auth.service.ts
+// │   │   ├── auth.type.ts
+// │   │   └── auth.validation.ts
+// │   ├── health
+// │   │   ├── health.controller.ts
+// │   │   ├── health.route.ts
+// │   │   ├── health.service.ts
+// │   │   └── health.type.ts
+// │   ├── images
+// │   │   ├── images.controller.ts
+// │   │   ├── images.route.ts
+// │   │   ├── images.service.ts
+// │   │   └── images.validation.ts
+// │   ├── jobs
+// │   │   ├── jobs.controller.ts
+// │   │   ├── jobs.route.ts
+// │   │   ├── jobs.service.ts
+// │   │   └── jobs.validation.ts
+// │   └── quizzes
+// │       ├── quizzes.controller.ts
+// │       ├── quizzes.job.service.ts
+// │       ├── quizzes.route.ts
+// │       ├── quizzes.service.ts
+// │       └── quizzes.validation.ts
+// ├── services
+// │   ├── quizBot.ts
+// │   ├── quizDispatcher.ts
+// │   ├── quizMediaNormalizer.ts
+// │   └── quizSender.ts
+// ├── types
+// │   └── httpStatusText.ts
+// └── utils
+//     ├── chatMediaResolver.ts
+//     ├── customError.ts
+//     ├── errorHandler.ts
+//     ├── escaper.ts
+//     ├── logger.ts
+//     ├── parser.ts
+//     └── tokenCipher.ts
+
+// 15 directories, 45 files

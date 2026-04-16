@@ -1,8 +1,9 @@
+import { Request, Response, NextFunction } from "express";
 import { HTTPStatusText } from "../../types/httpStatusText";
 import { AuthService } from "./auth.service";
 
 export class AuthController {
-  public static async signIn(req, res, next) {
+  public static async signIn(req: Request, res: Response, next: NextFunction) {
     try {
       const { chatId, botToken, isChannel } = res.locals.body || req.body;
 

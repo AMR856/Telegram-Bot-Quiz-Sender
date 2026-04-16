@@ -1,6 +1,6 @@
 import { TelegramAuth } from "../../intergrations/telegram/telegramAuth";
 import { ChatFolderResolver } from "../../utils/chatMediaResolver";
-import { UserStore } from "./auth.model";
+import { UserModel } from "./auth.model";
 import { SignInUserParams, SignInUserResult } from "./auth.type";
 
 export class AuthService {
@@ -9,9 +9,11 @@ export class AuthService {
     botToken,
     isChannel = true,
   }: SignInUserParams): Promise<SignInUserResult> {
+    // Validate bot token by making a request to Telegram API
     await TelegramAuth.verifyBotToken(botToken);
 
-    const signed = await UserStore.signInOrUpsert({
+    
+    const signed = await UserModel.signInOrUpsert({
       chatId,
       botToken,
       isChannel,
