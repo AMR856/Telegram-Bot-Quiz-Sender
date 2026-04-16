@@ -9,6 +9,7 @@ export class JobController {
     next: NextFunction,
   ) {
     try {
+      // Getting the queue that was initizlized in the beginning of the server and attached to app.locals for access in controllers and route handlers
       const queue = req.app.locals.queue;
       const user = res.locals.user;
       const { id } = res.locals.params || req.params;

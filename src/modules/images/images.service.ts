@@ -35,14 +35,13 @@ interface ImageServiceDeleteParams {
 export class ImageService {
   public static upload = async ({ file, user }: ImageServiceUploadParams) => {
     const uploaded = await uploadBufferToCloudinary({
-      buffer: file.buffer,
+      buffer: file.buffer, // The file buffer that we want to upload to Cloudinary, which is obtained from the uploaded file in the request. This buffer contains the binary data of the file.
       chatId: user.chatId,
       originalName: file.originalname,
     });
 
     return {
       url: uploaded.secure_url,
-      secureUrl: uploaded.secure_url,
       publicId: uploaded.public_id,
       originalName: file.originalname,
       folder: ChatFolderResolver.resolveFolderName(user.chatId),

@@ -35,7 +35,10 @@ interface QuizSenderConfig {
 interface QuizSenderOptions {
   delayMs?: number;
   onSuccess?: (index: number) => Promise<void> | void;
-  onFailure?: (index: number, error: TelegramApiError | Error) => Promise<void> | void;
+  onFailure?: (
+    index: number,
+    error: TelegramApiError | Error,
+  ) => Promise<void> | void;
 }
 
 export interface Quiz {
@@ -68,7 +71,6 @@ interface SendPollPayload {
   explanation_parse_mode?: string;
   allows_multiple_answers: boolean;
 }
-
 
 export class QuizSender {
   private readonly telegramClient: TelegramClient;
@@ -109,18 +111,16 @@ export class QuizSender {
   public async sendAll(
     chatId: string,
     quizzes: Quiz[],
-    {
-      delayMs = 2000,
-      onSuccess,
-      onFailure,
-    }: QuizSenderOptions = {}
+    { delayMs = 2000, onSuccess, onFailure }: QuizSenderOptions = {},
   ): Promise<void> {
     if (!quizzes || quizzes.length === 0) {
       LoggerService.warn("No quizzes to send");
       return;
     }
 
-    LoggerService.info(`Starting to send ${quizzes.length} quizzes to ${chatId}`);
+    LoggerService.info(
+      `Starting to send ${quizzes.length} quizzes to ${chatId}`,
+    );
 
     for (let index = 0; index < quizzes.length; index += 1) {
       let sent = false;
@@ -147,7 +147,7 @@ export class QuizSender {
             const retryAfterSeconds = this.parseRetryAfter(apiError);
 
             LoggerService.warn(
-              `Rate limited (429). Waiting ${retryAfterSeconds}s before retrying quiz ${index + 1}/${quizzes.length}`
+              `Rate limited (429). Waiting ${retryAfterSeconds}s before retrying quiz ${index + 1}/${quizzes.length}`,
             );
 
             await this.sleep(retryAfterSeconds * 1000);
@@ -163,7 +163,7 @@ export class QuizSender {
           }
 
           LoggerService.error(
-            `Failed to send quiz ${index + 1}/${quizzes.length}: ${error}`
+            `Failed to send quiz ${index + 1}/${quizzes.length}: ${error}`,
           );
 
           sent = true; // Move to next quiz after failure
@@ -184,7 +184,7 @@ export class QuizSender {
     const options = quiz.options || [];
 
     const hasLongOption = options.some(
-      (option: string) => (option || "").length > POLL_OPTION_CHAR_LIMIT
+      (option: string) => (option || "").length > POLL_OPTION_CHAR_LIMIT,
     );
 
     const markdownSpoilerExplanation = `||${escapeMarkdownV2(explanation)}||`;
@@ -219,7 +219,7 @@ export class QuizSender {
   private async sendInlineQuiz(
     chatId: string,
     quiz: Quiz,
-    preparedQuiz: PreparedQuiz
+    preparedQuiz: PreparedQuiz,
   ): Promise<void> {
     const payload: SendPollPayload = {
       question: quiz.question,
@@ -242,7 +242,7 @@ export class QuizSender {
   private async sendSplitQuiz(
     chatId: string,
     quiz: Quiz,
-    preparedQuiz: PreparedQuiz
+    preparedQuiz: PreparedQuiz,
   ): Promise<void> {
     const messageText = this.buildSplitMessage(preparedQuiz);
 
@@ -273,8 +273,8 @@ export class QuizSender {
 
     const explanation = preparedQuiz.explanation
       .split("\n")
-      .map((line: string) =>
-        `<span class="tg-spoiler">${escapeHtml(line)}</span>`
+      .map(
+        (line: string) => `<span class="tg-spoiler">${escapeHtml(line)}</span>`,
       )
       .join("\n");
 
@@ -302,7 +302,7 @@ export class QuizSender {
       quiz.correctAnswerId >= quiz.options.length
     ) {
       throw new Error(
-        `Invalid correctAnswerId: must be between 0 and ${quiz.options.length - 1}`
+        `Invalid correctAnswerId: must be between 0 and ${quiz.options.length - 1}`,
       );
     }
   }
@@ -343,5 +343,3 @@ export class QuizSender {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
-
-export {};

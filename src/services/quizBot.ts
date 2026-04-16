@@ -2,6 +2,8 @@ import { logToFile } from "../utils/logger";
 import { TelegramClient } from "../intergrations/telegram/telegramClient";
 import { Parser } from "../utils/parser";
 import { QuizSender } from "./quizSender";
+import CustomError from "../utils/customError";
+import { HTTPStatusText } from "../types/httpStatusText";
 
 interface QuizBotConfig {
   chatId: string;
@@ -23,6 +25,9 @@ export class QuizBot {
   private readonly failedLogFile?: string;
   private readonly sender: QuizSender;
 
+  // The constructor initializes the QuizBot instance with the provided configuration.
+  // It validates that a chat ID is provided and throws a CustomError if it's missing.
+  // It also sets up the TelegramClient and QuizSender instances that will be used to send quizzes to Telegram.
   constructor({
     chatId,
     baseUrl,
@@ -32,7 +37,7 @@ export class QuizBot {
     failedLogFile,
   }: QuizBotConfig) {
     if (!chatId) {
-      throw new Error("CHAT_ID is required.");
+      throw new CustomError("CHAT_ID is required.", 400, HTTPStatusText.FAIL);
     }
 
     this.chatId = chatId;
@@ -44,6 +49,7 @@ export class QuizBot {
     });
   }
 
+  // Get the quizzes from the specified file path and parse them using the Parser utility.
   public async loadQuizzes(filePath: string) {
     return Parser.parseQuizzes(filePath, {
       chatId: this.chatId,
@@ -55,6 +61,8 @@ export class QuizBot {
     await this.sender.sendAll(this.chatId, quizzes, {
       delayMs,
       onSuccess: async (index) => {
+        // Logging success to a file for each quiz sent successfully,
+        // including the index of the quiz in the quizzes array.
         const message = `Successfully sent quiz at index ${index}`;
         await logToFile(this.successLogFile, message);
       },
@@ -74,6 +82,7 @@ export class QuizBot {
             transportError.response?.data?.description ||
             transportError.message ||
             "Unknown error";
+          // Logging failures to a file for each quiz that fails to send, including the index of the quiz and the error description.
           const failedMessage = `Failed to send quiz ${index + 1} (status 400): ${failureDescription}`;
           await logToFile(this.failedLogFile, failedMessage, "warn");
         }

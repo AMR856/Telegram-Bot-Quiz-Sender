@@ -43,6 +43,9 @@ Create a `.env` file in the root directory:
 # Server
 PORT=3000
 NODE_ENV=development
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
+ERROR_LOG_FILE=logs/error.log
 
 # Database
 MONGODB_URI=mongodb://127.0.0.1:27017/telegram_quiz_bot

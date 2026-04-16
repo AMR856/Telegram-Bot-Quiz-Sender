@@ -2,6 +2,7 @@ import CustomError from "../../utils/customError";
 import { HTTPStatusText } from "../../types/httpStatusText";
 
 interface JobServiceParams {
+  // A queue is an object that has a getJob method that takes a jobId and returns a Promise that resolves to a job object. The job object has methods to get its state, progress, return value, and failed reason.
   queue: { getJob(jobId: string): Promise<any> };
   jobId: string;
   userId: string;
@@ -33,6 +34,7 @@ export class JobService {
       throw new CustomError("Forbidden", 403, HTTPStatusText.FAIL);
     }
 
+    // Using Promise.all to fetch all job details in parallel for better performance
     const [state, progress, returnValue, failedReason] = await Promise.all([
       job.getState(),
       job.progress,

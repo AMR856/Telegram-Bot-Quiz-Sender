@@ -5,6 +5,7 @@ import { buildApiServer } from "./server";
 require("dotenv").config();
 
 
+// Load environment variables and validate required configurations
 const {
   IS_CHANNEL: IS_CHANNEL_ENV,
   CHAT_ID,
@@ -17,10 +18,13 @@ const {
 } = process.env;
 
 const IS_CHANNEL = String(IS_CHANNEL_ENV).toLowerCase() === "true";
+
 const TELEGRAM_API_BASE_URL =
   TELEGRAM_API_URL ||
   (BOT_TOKEN ? `https://api.telegram.org/bot${BOT_TOKEN}` : "");
 
+// Main entry point of the application (Legacy quiz sender)
+// ! No API or workers
 async function runLegacySendAll() {
   if (!TELEGRAM_API_BASE_URL) {
     throw new Error(

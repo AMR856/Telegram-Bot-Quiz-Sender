@@ -23,14 +23,17 @@ import { startHealthPublisher } from "./src/modules/health/health.service";
 import { errorHandler } from "./src/utils/errorHandler";
 
 export const buildApiServer = async (): Promise<ApiServer> => {
+  // Initialize MongoDB connection and job queue before starting the server
   await MongoConnection.connect();
   const queue = QuizQueueManager.getQueue();
   const frontendDir = path.resolve(process.cwd(), "../frontend");
 
   const app: Application = express();
 
+  // ! Attach the queue to app.locals for access in route handlers and controllers
   app.locals.queue = queue;
 
+  // CORS configuration with environment variable support
   const configuredOrigins = String(process.env.CORS_ORIGINS || "")
     .split(",")
     .map((item) => item.trim())
@@ -43,7 +46,10 @@ export const buildApiServer = async (): Promise<ApiServer> => {
     ...configuredOrigins,
   ]);
 
+  // Limit JSON body size to prevent abuse and potential DoS attacks
   app.use(express.json({ limit: "2mb" }));
+
+  // Serve static files from the frontend build directory (if applicable)
   app.use(express.static(frontendDir));
 
   app.use(
@@ -61,8 +67,12 @@ export const buildApiServer = async (): Promise<ApiServer> => {
     }),
   );
 
+
   // app.use(RateLimiters.globalErrorLimiter);
   app.use("/auth", RateLimiters.authRateLimiter);
+
+  // ! Audit logging middleware should be placed after CORS and rate limiting to ensure all requests are logged, including those that are blocked by CORS or rate limits. 
+  // ! This provides a complete audit trail of all incoming requests and their outcomes.
   app.use(auditLog);
 
   app.use("/health", healthRouter);
@@ -77,6 +87,8 @@ export const buildApiServer = async (): Promise<ApiServer> => {
 
   app.use(errorHandler);
 
+
+  // Starting the health SSE publisher to emit health snapshots at regular intervals for real-time monitoring
   startHealthPublisher();
 
   const runWorker = () => {

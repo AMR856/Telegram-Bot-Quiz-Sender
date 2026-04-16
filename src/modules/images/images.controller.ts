@@ -5,7 +5,7 @@ import { ImageService } from "./images.service";
 export class ImageController {
   public static async upload(req: Request, res: Response, next: NextFunction) {
     try {
-      const file = res.locals.file || req.file;
+      const file = res.locals.file; 
       const user = res.locals.user;
       const data = await ImageService.upload({ file, user: user });
       res.status(201).json({

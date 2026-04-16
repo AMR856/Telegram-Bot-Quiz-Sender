@@ -23,7 +23,7 @@ export class QuizzesService {
     return {
       jobId: job.id,
       status: "queued",
-      count: Array.isArray(quizzes) ? quizzes.length : 0,
+      count: Array.isArray(quizzes) ? quizzes.length : 0, // The number of quizzes that were enqueued, or 0 if the quizzes parameter is not an array
     };
   }
 }

@@ -20,16 +20,34 @@ export const auditLog = (
     try {
       const duration = Date.now() - (req.startTime || 0);
       const apiKey = req.header("x-api-key") || req.query.apiKey;
+      const method = req.method;
+      const path = req.originalUrl;
+      const statusCode = res.statusCode;
+      const userId = req.user?.id ?? null;
+      const chatId = req.user?.chatId ?? null;
+      const ip = req.ip ?? null;
+
+      const requestSummary = `[HTTP] ${method} ${path} -> ${statusCode} (${duration}ms) ip=${ip || "-"} userId=${userId || "anonymous"} chatId=${chatId || "-"}`;
+
+      // Logging in files not only auditing in the database,
+      // we log all requests with their status codes and other relevant information.
+      if (statusCode >= 500) {
+        LoggerService.error(requestSummary);
+      } else if (statusCode >= 400) {
+        LoggerService.warn(requestSummary);
+      } else {
+        LoggerService.info(requestSummary);
+      }
 
       // ! Don't audit the response if it has a status code of 304 (Not Modified) to avoid logging cache hits
-      if (res.statusCode !== 304) {
+      if (statusCode !== 304) {
         await LoggerService.writeAuditLog({
-          method: req.method,
-          path: req.originalUrl,
-          statusCode: res.statusCode,
-          userId: req.user?.id ?? null,
-          chatId: req.user?.chatId ?? null,
-          ip: req.ip ?? null,
+          method,
+          path,
+          statusCode,
+          userId,
+          chatId,
+          ip,
           userAgent: req.get("user-agent") ?? null,
           apiKey: typeof apiKey === "string" ? apiKey : null,
           duration,
