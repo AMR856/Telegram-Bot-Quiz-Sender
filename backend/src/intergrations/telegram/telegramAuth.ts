@@ -10,6 +10,7 @@ export class TelegramAuth {
       throw new CustomError("botToken is required", 400, HTTPStatusText.FAIL);
     }
 
+    // Telegram API endpoint to get bot information
     const baseUrl = `https://api.telegram.org/bot${normalizedBotToken}`;
     const response = await axios.get(`${baseUrl}/getMe`);
     return response.data;

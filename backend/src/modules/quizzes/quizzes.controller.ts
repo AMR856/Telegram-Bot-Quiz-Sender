@@ -1,15 +1,17 @@
+import { Request, Response, NextFunction } from "express";
 import { HTTPStatusText } from "../../types/httpStatusText";
 import { QuizzesService } from "./quizzes.service";
 
 export class QuizzesController {
-  public static async send(req, res, next) {
+  public static async send(req: Request, res: Response, next: NextFunction) {
     try {
       const queue = req.app.locals.queue;
+      const user = res.locals.user;
       const { quizzes, delayMs } = res.locals.body || req.body;
 
       const data = await QuizzesService.enqueueQuizzesForUser({
         queue,
-        user: req.user,
+        user,
         quizzes,
         delayMs,
       });

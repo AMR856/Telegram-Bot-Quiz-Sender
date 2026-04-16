@@ -9,6 +9,7 @@ export class UploadConfig {
   private static uploadInstance: Multer | null = null;
 
   private static initializeUpload(): Multer {
+    // Use memory storage for multer to handle file uploads in memory
     if (!this.uploadInstance) {
       this.uploadInstance = multer({
         storage: multer.memoryStorage(),

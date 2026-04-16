@@ -2,6 +2,8 @@ import axios, { AxiosError } from "axios";
 import fs from "fs";
 import FormData from "form-data";
 import path from "path";
+import { HTTPStatusText } from "../../types/httpStatusText";
+import CustomError from "../../utils/customError";
 
 const TELEGRAM_URL_CONTENT_FAILURE_PATTERNS = [
   "failed to get http url content",
@@ -23,7 +25,7 @@ export class TelegramClient {
 
   constructor({ baseUrl, isChannel }: TelegramClientConfig) {
     if (!baseUrl) {
-      throw new Error("Telegram API base URL is required.");
+      throw new CustomError("Telegram API base URL is required.", 400, HTTPStatusText.FAIL);
     }
 
     this.baseUrl = baseUrl;

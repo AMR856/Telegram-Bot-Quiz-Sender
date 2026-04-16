@@ -1,6 +1,7 @@
 import { MongoClient, Db } from "mongodb";
 import CustomError from "../utils/customError";
 import { HTTPStatusText } from "../types/httpStatusText";
+import { LoggerService } from "../utils/logger";
 
 export class MongoConnection {
   private static instance: MongoClient | null = null;
@@ -8,15 +9,19 @@ export class MongoConnection {
   private static readonly DEFAULT_DB_NAME: string = "telegram_quiz_bot";
 
   private static resolveDatabaseName(): string {
+    // First check if there's an explicit database name in the environment variable
     const explicitName = String(process.env.MONGODB_DB_NAME || "").trim();
     if (explicitName) {
       return explicitName;
     }
 
+    // If not, try to parse the database name from the URI path
     const mongoUri = String(process.env.MONGODB_URI || "");
 
     try {
+      
       const parsed = new URL(mongoUri);
+      // The database name is typically the first segment of the path in the URI
       const dbNameFromPath = parsed.pathname.replace(/^\//, "").trim();
       return dbNameFromPath || this.DEFAULT_DB_NAME;
     } catch (error) {
@@ -40,7 +45,8 @@ export class MongoConnection {
     if (this.db) {
       return this.db;
     }
-
+    
+    // Create a new MongoClient instance and connect to the database
     const mongoUri = this.getMongoUri();
     this.instance = new MongoClient(mongoUri);
 

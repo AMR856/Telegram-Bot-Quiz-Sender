@@ -21,18 +21,21 @@ export const auditLog = (
       const duration = Date.now() - (req.startTime || 0);
       const apiKey = req.header("x-api-key") || req.query.apiKey;
 
-      await LoggerService.writeAuditLog({
-        method: req.method,
-        path: req.originalUrl,
-        statusCode: res.statusCode,
-        userId: req.user?.id ?? null,
-        chatId: req.user?.chatId ?? null,
-        ip: req.ip ?? null,
-        userAgent: req.get("user-agent") ?? null,
-        apiKey: typeof apiKey === "string" ? apiKey : null,
-        duration,
-        timestamp: new Date(),
-      });
+      // ! Don't audit the response if it has a status code of 304 (Not Modified) to avoid logging cache hits
+      if (res.statusCode !== 304) {
+        await LoggerService.writeAuditLog({
+          method: req.method,
+          path: req.originalUrl,
+          statusCode: res.statusCode,
+          userId: req.user?.id ?? null,
+          chatId: req.user?.chatId ?? null,
+          ip: req.ip ?? null,
+          userAgent: req.get("user-agent") ?? null,
+          apiKey: typeof apiKey === "string" ? apiKey : null,
+          duration,
+          timestamp: new Date(),
+        });
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";

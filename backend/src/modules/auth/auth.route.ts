@@ -10,4 +10,3 @@ authRouter.post(
   validate({ body: AuthValidationSchema.signIn }),
   AuthController.signIn,
 );
-

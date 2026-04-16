@@ -1,23 +1,27 @@
-import { UserStore } from "../modules/auth/auth.model";
+import { Request, Response, NextFunction } from "express";
+import { UserModel } from "../modules/auth/auth.model";
 import { HTTPStatusText } from "../types/httpStatusText";
 import CustomError from "../utils/customError";
 
-
-export const authMiddleware = async (req, res, next) => {
+export const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const apiKey = req.header("x-api-key") || req.query.apiKey;
+    const apiKey = req.header("x-api-key") || req.query.apiKey; // Support API key in both header and query parameters
 
     if (!apiKey) {
       throw new CustomError("Missing API key", 401, HTTPStatusText.FAIL);
     }
 
-    const user = await UserStore.getUserByApiKey(apiKey);
+    const user = await UserModel.getUserByApiKey(apiKey);
 
     if (!user) {
       throw new CustomError("Invalid API key", 401, HTTPStatusText.FAIL);
     }
 
-    req.user = user;
+    res.locals.user = user;
     return next();
   } catch (error) {
     if (error instanceof CustomError) {
@@ -29,4 +33,3 @@ export const authMiddleware = async (req, res, next) => {
     );
   }
 };
-

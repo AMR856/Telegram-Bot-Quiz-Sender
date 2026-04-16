@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { HealthState } from '@/types'
-import { apiClient } from '@/lib/api-client'
-import { HEALTH_CHECK_INTERVAL } from '@/lib/constants'
+
+function buildHealthStreamUrl(backendUrl: string): string {
+  return new URL('/health/stream', backendUrl.trim()).toString()
+}
 
 export function useHealthCheck(backendUrl: string) {
   const [health, setHealth] = useState<HealthState>({
@@ -10,37 +12,58 @@ export function useHealthCheck(backendUrl: string) {
     at: null,
   })
 
-  const checkHealth = useCallback(async () => {
-    if (!backendUrl.trim()) return
+  useEffect(() => {
+    const target = backendUrl.trim()
 
-    setHealth((prev) => ({ ...prev, state: 'checking' }))
-
-    try {
-      apiClient.setBaseUrl(backendUrl)
-      const result = await apiClient.get('/health')
-
+    if (!target) {
       setHealth({
-        state: result.ok ? 'up' : 'down',
-        code: result.status,
-        at: new Date().toLocaleTimeString(),
+        state: 'idle',
+        code: null,
+        at: null,
       })
-    } catch {
+      return
+    }
+
+    setHealth((prev) => ({
+      ...prev,
+      state: 'checking',
+    }))
+
+    const source = new EventSource(buildHealthStreamUrl(target))
+
+    const handleHealthEvent = (event: MessageEvent) => {
+      try {
+        const snapshot = JSON.parse(event.data) as HealthState
+
+        setHealth({
+          state: snapshot.state,
+          code: snapshot.code,
+          at: snapshot.at,
+        })
+      } catch {
+        setHealth({
+          state: 'down',
+          code: null,
+          at: new Date().toLocaleTimeString(),
+        })
+      }
+    }
+
+    source.addEventListener('health', handleHealthEvent)
+
+    source.onerror = () => {
       setHealth({
         state: 'down',
         code: null,
         at: new Date().toLocaleTimeString(),
       })
     }
+
+    return () => {
+      source.removeEventListener('health', handleHealthEvent)
+      source.close()
+    }
   }, [backendUrl])
-
-  useEffect(() => {
-    if (!backendUrl.trim()) return
-
-    checkHealth()
-    const timer = setInterval(checkHealth, HEALTH_CHECK_INTERVAL)
-
-    return () => clearInterval(timer)
-  }, [backendUrl, checkHealth])
 
   return health
 }

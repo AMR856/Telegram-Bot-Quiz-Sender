@@ -9,16 +9,19 @@ import {
   SignInResponse,
   UserSignInOrUpsertParams,
 } from "./auth.type";
+import CustomError from "../../utils/customError";
+import { HTTPStatusText } from "../../types/httpStatusText";
 
-export class UserStore {
+export class UserModel {
   private static readonly COLLECTION_NAME = "users";
 
   private static normalizeChatId(chatId: unknown): string {
-    return String(chatId || "").trim();
-  }
-
-  private static normalizeBotToken(botToken: unknown): string {
-    return String(botToken || "").trim();
+    // The chatID should contain a - if it doesn't contain it, it should add it
+    const normalizedChatId = String(chatId || "").trim();
+    if (normalizedChatId && !normalizedChatId.includes("-")) {
+      return `-${normalizedChatId}`;
+    }
+    return normalizedChatId;
   }
 
   private static getUsersCollection(): Collection<MongoUser> {
@@ -26,6 +29,7 @@ export class UserStore {
     return db.collection(this.COLLECTION_NAME) as Collection<MongoUser>;
   }
 
+  // This function is used to return only the public information of the user, without the bot token and the API key
   private static publicUser(user: Partial<MongoUser>): PublicUser {
     return {
       id: user.id || "",
@@ -58,18 +62,21 @@ export class UserStore {
       await this.ensureIndexes();
 
       const now = new Date().toISOString();
+      // Checking the chat id is valid (Has the - and if it's a string)
       const normalizedChatId = this.normalizeChatId(chatId);
-      const normalizedBotToken = this.normalizeBotToken(botToken);
       const users = this.getUsersCollection();
 
-      if (!normalizedChatId || !normalizedBotToken) {
-        throw new Error("chatId and botToken are required");
+      if (!normalizedChatId) {
+        throw new CustomError("chatId is required", 400, HTTPStatusText.FAIL);
       }
 
       const existing = await users.findOne({ chatId: normalizedChatId });
-      const encryptedBotToken = BotTokenCipher.encrypt(normalizedBotToken);
+      const encryptedBotToken = BotTokenCipher.encrypt(
+        botToken as unknown as string,
+      );
 
       if (existing) {
+        // If the user already exists, it should update the bot token and the isChannel flag
         await users.updateOne(
           { _id: existing._id },
           {
@@ -80,7 +87,7 @@ export class UserStore {
             },
           },
         );
-
+        // After updating, it should return the updated user data with the decrypted bot token
         return {
           user: this.publicUser({
             ...existing,
@@ -91,6 +98,7 @@ export class UserStore {
         };
       }
 
+      // Creating new user because it didn't exist before
       const newUser: MongoUser = {
         id: crypto.randomUUID(),
         apiKey: crypto.randomBytes(24).toString("hex"),
@@ -110,7 +118,11 @@ export class UserStore {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to sign in or upsert user: ${errorMessage}`);
+      throw new CustomError(
+        `Failed to sign in or upsert user: ${errorMessage}`,
+        400,
+        HTTPStatusText.FAIL,
+      );
     }
   }
 
@@ -130,11 +142,12 @@ export class UserStore {
         return null;
       }
 
+      // Decrypting the bot token before returning the user data
       return {
         id: user.id,
         apiKey: user.apiKey,
         chatId: user.chatId,
-        botToken: BotTokenCipher.decrypt(user.botTokenEncrypted),
+        botToken: BotTokenCipher.decrypt(user.botTokenEncrypted), // decrypted bot token should be returned
         isChannel: Boolean(user.isChannel),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -142,10 +155,15 @@ export class UserStore {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to get user by API key: ${errorMessage}`);
+      throw new CustomError(
+        `Failed to get user by API key: ${errorMessage}`,
+        400,
+        HTTPStatusText.FAIL,
+      );
     }
   }
 
+  // * Same logic as the function above it only differs by the search key
   static async getUserById(userId: unknown): Promise<DecryptedUser | null> {
     try {
       const normalizedUserId = String(userId || "").trim();
@@ -174,10 +192,15 @@ export class UserStore {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to get user by ID: ${errorMessage}`);
+      throw new CustomError(
+        `Failed to get user by ID: ${errorMessage}`,
+        400,
+        HTTPStatusText.FAIL,
+      );
     }
   }
 
+  // * Same logic as the two functions above it only differs by the search key
   static async getUserByChatId(chatId: unknown): Promise<DecryptedUser | null> {
     try {
       const normalizedChatId = this.normalizeChatId(chatId);
@@ -206,7 +229,11 @@ export class UserStore {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to get user by chat ID: ${errorMessage}`);
+      throw new CustomError(
+        `Failed to get user by chat ID: ${errorMessage}`,
+        400,
+        HTTPStatusText.FAIL,
+      );
     }
   }
 }
