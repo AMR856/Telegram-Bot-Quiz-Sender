@@ -143,6 +143,16 @@ export class WrongAnswerRetryWorker {
         
         LoggerService.error(`Axios error response: ${JSON.stringify(errorDetails, null, 2)}`);
       }
+
+      const nonRetriableReason = this.getNonRetriableReason(error);
+      if (nonRetriableReason) {
+        await QuizAnswerTracker.markRetrySkipped(item._id, nonRetriableReason);
+        LoggerService.warn(
+          `Skipping wrong-answer retry for user ${item.telegramUserId}: ${nonRetriableReason}`,
+        );
+        return;
+      }
+
       const message = error instanceof Error ? error.message : "Unknown error";
       const baseDelayMinutes = Number(
         process.env.WRONG_ANSWER_RETRY_BACKOFF_MINUTES || 5,
@@ -189,5 +199,34 @@ export class WrongAnswerRetryWorker {
     }
 
     return errorString;
+  }
+
+  private static getNonRetriableReason(error: unknown): string | null {
+    if (!(error instanceof Error) || !("response" in error)) {
+      return null;
+    }
+
+    const axiosError = error as {
+      response?: {
+        status?: number;
+        data?: {
+          description?: string;
+        };
+      };
+    };
+
+    const status = Number(axiosError.response?.status || 0);
+    const description = String(
+      axiosError.response?.data?.description || "",
+    ).toLowerCase();
+
+    if (
+      status === 403 &&
+      description.includes("bots can't send messages to bots")
+    ) {
+      return "Telegram rejected retry because the responder account is a bot";
+    }
+
+    return null;
   }
 }

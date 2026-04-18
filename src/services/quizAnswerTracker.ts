@@ -32,7 +32,7 @@ export interface WrongAnswerRetryRecord {
   quiz: Quiz;
   dueAt: Date;
   attempts: number;
-  status: "pending" | "processing" | "sent";
+  status: "pending" | "processing" | "sent" | "skipped";
   lastError: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +49,7 @@ interface TrackPollAnswerParams {
   ownerUserId: string;
   pollId: string;
   telegramUserId: string;
+  telegramUserIsBot?: boolean;
   selectedOptionIds: number[];
 }
 
@@ -153,6 +154,7 @@ export class QuizAnswerTracker {
     ownerUserId,
     pollId,
     telegramUserId,
+    telegramUserIsBot = false,
     selectedOptionIds,
   }: TrackPollAnswerParams): Promise<void> {
     // Ensure indexes
@@ -209,6 +211,18 @@ export class QuizAnswerTracker {
       return;
     }
     LoggerService.info(`User ${telegramUserId} answered incorrectly for poll ${pollId}. Checking retry configuration...`);
+
+    if (telegramUserIsBot) {
+      LoggerService.warn(
+        `Skipping retry scheduling for poll ${pollId} because responder ${telegramUserId} is a bot account`,
+      );
+      await this.getRetriesCollection().deleteOne({
+        ownerUserId,
+        pollId,
+        telegramUserId,
+      });
+      return;
+    }
 
 
     // If the user's answer is wrong and the quiz has a retry configuration, a retry record is inserted or updated in the retries collection with the associated quiz data, due date for retrying, and status.
@@ -293,6 +307,24 @@ export class QuizAnswerTracker {
           status: "sent",
           updatedAt: new Date(),
           lastError: null,
+        },
+      },
+    );
+  }
+
+  public static async markRetrySkipped(
+    id: ObjectId,
+    reason: string,
+  ): Promise<void> {
+    await this.ensureIndexes();
+
+    await this.getRetriesCollection().updateOne(
+      { _id: id },
+      {
+        $set: {
+          status: "skipped",
+          updatedAt: new Date(),
+          lastError: reason,
         },
       },
     );

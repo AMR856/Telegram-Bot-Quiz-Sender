@@ -58,9 +58,18 @@ export class TelegramController {
           .json({ status: HTTPStatusText.SUCCESS, accepted: false });
       }
 
-      const telegramUserId = String(
-        pollAnswer?.user?.id || pollAnswer?.voter_chat?.id || "",
-      ).trim();
+      const pollAnswerUser = pollAnswer?.user;
+      if (!pollAnswerUser?.id) {
+        LoggerService.warn(
+          `Skipping poll answer ${String(pollAnswer.poll_id)} because poll_answer.user.id is missing`,
+        );
+        return res
+          .status(200)
+          .json({ status: HTTPStatusText.SUCCESS, accepted: false });
+      }
+
+      const telegramUserId = String(pollAnswerUser.id || "").trim();
+      const telegramUserIsBot = Boolean(pollAnswerUser.is_bot);
 
       // If the Telegram user ID cannot be extracted from the incoming update, 
       // it means that the answer cannot be associated with a specific user, 
@@ -77,6 +86,7 @@ export class TelegramController {
         ownerUserId: user.id,
         pollId: String(pollAnswer.poll_id),
         telegramUserId,
+        telegramUserIsBot,
         selectedOptionIds: Array.isArray(pollAnswer.option_ids)
           ? pollAnswer.option_ids
           : [],
