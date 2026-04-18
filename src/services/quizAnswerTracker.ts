@@ -1,6 +1,7 @@
 import { Db, Collection, ObjectId } from "mongodb";
 import { MongoConnection } from "../config/mongo";
 import { Quiz } from "./quizSender";
+import { LoggerService } from "../utils/logger";
 
 interface SentPollRecord {
   _id?: ObjectId;
@@ -207,12 +208,15 @@ export class QuizAnswerTracker {
       });
       return;
     }
+    LoggerService.info(`User ${telegramUserId} answered incorrectly for poll ${pollId}. Checking retry configuration...`);
+
 
     // If the user's answer is wrong and the quiz has a retry configuration, a retry record is inserted or updated in the retries collection with the associated quiz data, due date for retrying, and status.
     if (Number(sentPoll.retryWrongAfterMinutes || 0) <= 0) {
       return;
     }
 
+    LoggerService.info(`Quiz has retry configuration. Scheduling retry for user ${telegramUserId} after ${sentPoll.retryWrongAfterMinutes} minutes.`);
     // Calculating the due date for retrying the quiz question based on the current time and the specified retry interval for wrong answers, which allows the system to manage retries for wrong answers by determining when to attempt resending the quiz question to the user.
     const dueAt = new Date(
       now.getTime() + Number(sentPoll.retryWrongAfterMinutes) * 60 * 1000,
