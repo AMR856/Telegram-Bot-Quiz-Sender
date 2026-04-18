@@ -122,6 +122,7 @@ export class TelegramClient {
     payload: Record<string, any>,
   ): Promise<any> {
     try {
+      LoggerService.info("We reach here");
     return this.post("sendPoll", {
       chat_id: chatId,
       ...payload,

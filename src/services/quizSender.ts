@@ -106,7 +106,10 @@ export class QuizSender {
   public async sendQuiz(chatId: string, quiz: Quiz): Promise<string | null> {
     this.validateQuiz(quiz);
 
+    LoggerService.info('Validated the quiz');
     const preparedQuiz = this.prepareQuiz(quiz);
+        LoggerService.info('Prepared the quiz');
+
     const quizPhoto = quiz.photo || quiz.image;
 
     if (quizPhoto) {
@@ -117,7 +120,7 @@ export class QuizSender {
     if (preparedQuiz.needsSplitMessage) {
       return this.sendSplitQuiz(chatId, quiz, preparedQuiz);
     }
-
+    LoggerService.info('Sending the quiz as an inline message');
     return this.sendInlineQuiz(chatId, quiz, preparedQuiz);
   }
 
@@ -200,6 +203,7 @@ export class QuizSender {
    * Checks character limits, determines if split message is needed
    */
   private prepareQuiz(quiz: Quiz): PreparedQuiz {
+    LoggerService.info('Preparing the quiz');
     const question = quiz.question || "";
     const explanation = quiz.explanation || "";
     const options = quiz.options || [];
@@ -214,6 +218,7 @@ export class QuizSender {
       question.length <= POLL_QUESTION_CHAR_LIMIT &&
       !hasLongOption;
 
+      LoggerService.info("Finished preparing the quiz");
     return {
       canInlineExplanation,
       hasLongOption,
@@ -253,10 +258,12 @@ export class QuizSender {
       allows_multiple_answers: false,
     };
 
+    LoggerService.info(`Here is the response of sendPoll`);
     const response = (await this.telegramClient.sendPoll(
       chatId,
       payload,
     )) as TelegramSendPollResponse;
+    LoggerService.info("We don'g get here");
     LoggerService.debug(`Inline quiz sent: ${quiz.question}`);
 
     return response?.result?.poll?.id || null;

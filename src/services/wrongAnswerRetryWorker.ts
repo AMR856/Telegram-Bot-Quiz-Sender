@@ -97,13 +97,17 @@ export class WrongAnswerRetryWorker {
     try {
       const owner = await UserModel.getUserById(item.ownerUserId);
 
-      LoggerService.info(`Processing wrong-answer retry for Telegram user ${item.telegramUserId} and quiz "${item.quiz.question}"`);
+      LoggerService.info(
+        `Processing wrong-answer retry for Telegram user ${item.telegramUserId} and quiz "${item.quiz.question}"`,
+      );
       // If the owner user cannot be found, it means that the retry record is invalid or orphaned, as it references a user that does not exist in the system. In this case, the worker will throw an error and skip processing this record, as it cannot resend the quiz without a valid user context.
       if (!owner) {
         throw new Error(`Retry owner user not found: ${item.ownerUserId}`);
       }
 
-      LoggerService.info(`Initializing retry for user ${item.telegramUserId} and quiz ${item.quiz.question}`);
+      LoggerService.info(
+        `Initializing retry for user ${item.telegramUserId} and quiz ${item.quiz.question}`,
+      );
       // Constructing a sender instance to resend the quiz to the user. The sender is configured with a TelegramClient that uses the bot token from the owner user to authenticate with the Telegram API. The sender will attempt to resend the quiz associated with the retry record to the Telegram user ID specified in the record.
       const sender = new QuizSender({
         telegramClient: new TelegramClient({
@@ -113,14 +117,32 @@ export class WrongAnswerRetryWorker {
         isChannel: false,
       });
 
-      LoggerService.info(`Processing wrong-answer retry for user ${item.telegramUserId}`);
+      LoggerService.info(
+        `Processing wrong-answer retry for user ${item.telegramUserId}`,
+      );
       // Sending the quiz to the user and marking the retry as sent if successful. If the send operation fails, an error is caught, and the retry record is updated with the error message and scheduled for another retry after a certain delay, which can be configured via environment variable. This allows for robust handling of transient errors and ensures that users have multiple opportunities to receive the quiz even if there are temporary issues with the Telegram API or network connectivity.
       await sender.sendQuiz(item.telegramUserId, item.quiz);
-      LoggerService.info(`Processing wrong-answer retry for user ${item.telegramUserId}`);
+      LoggerService.info(
+        `Processing wrong-answer retry for user ${item.telegramUserId}`,
+      );
 
       // Mark the quiz as sent
       await QuizAnswerTracker.markRetrySent(item._id);
     } catch (error) {
+      console.log(error);
+      LoggerService.info(error);
+      LoggerService.error(`Full error details: ${WrongAnswerRetryWorker.captureErrorAsString(error)}`);
+      if (error instanceof Error && 'response' in error) {
+        const axiosError = error as any;
+        const errorDetails = {
+          status: axiosError.response?.status,
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          headers: axiosError.response?.headers,
+        };
+        
+        LoggerService.error(`Axios error response: ${JSON.stringify(errorDetails, null, 2)}`);
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
       const baseDelayMinutes = Number(
         process.env.WRONG_ANSWER_RETRY_BACKOFF_MINUTES || 5,
@@ -139,5 +161,33 @@ export class WrongAnswerRetryWorker {
         `Failed to resend wrong-answer quiz for user ${item.telegramUserId}: ${message}`,
       );
     }
+  }
+  static captureErrorAsString(error: unknown): string {
+    let errorString = "";
+    const originalLog = console.log;
+
+    console.log = (...args) => {
+      errorString +=
+        args
+          .map((arg) =>
+            typeof arg === "object"
+              ? JSON.stringify(arg, null, 2)
+              : String(arg),
+          )
+          .join(" ") + "\n";
+    };
+
+    try {
+      console.log(error);
+      if (error instanceof Error) {
+        console.log("Name:", error.name);
+        console.log("Message:", error.message);
+        console.log("Stack:", error.stack);
+      }
+    } finally {
+      console.log = originalLog;
+    }
+
+    return errorString;
   }
 }
