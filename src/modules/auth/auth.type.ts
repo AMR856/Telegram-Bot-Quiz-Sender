@@ -4,6 +4,7 @@ export interface MongoUser {
   apiKey: string;
   chatId: string;
   botTokenEncrypted: string;
+  webhookSecret: string;
   isChannel: boolean;
   createdAt: string;
   updatedAt: string;
@@ -20,6 +21,7 @@ export interface PublicUser {
 export interface DecryptedUser extends PublicUser {
   apiKey: string;
   botToken: string;
+  webhookSecret: string;
 }
 
 export interface UserSignInOrUpsertParams {
@@ -43,4 +45,5 @@ export interface SignInUserResult {
   user: PublicUser;
   apiKey: string;
   cloudinaryFolder: string;
+  webhookUrl?: string;
 }

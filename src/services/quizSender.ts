@@ -30,11 +30,17 @@ interface TelegramClient {
 
 interface QuizSenderConfig {
   telegramClient: TelegramClient;
+  isChannel?: boolean;
 }
 
 interface QuizSenderOptions {
   delayMs?: number;
   onSuccess?: (index: number) => Promise<void> | void;
+  onPollSent?: (
+    index: number,
+    pollId: string,
+    quiz: Quiz,
+  ) => Promise<void> | void;
   onFailure?: (
     index: number,
     error: TelegramApiError | Error,
@@ -69,24 +75,35 @@ interface SendPollPayload {
   correct_option_id?: number;
   explanation?: string;
   explanation_parse_mode?: string;
+  is_anonymous?: boolean;
   allows_multiple_answers: boolean;
+}
+
+interface TelegramSendPollResponse {
+  result?: {
+    poll?: {
+      id?: string;
+    };
+  };
 }
 
 export class QuizSender {
   private readonly telegramClient: TelegramClient;
+  private readonly isChannel: boolean;
 
-  constructor({ telegramClient }: QuizSenderConfig) {
+  constructor({ telegramClient, isChannel }: QuizSenderConfig) {
     if (!telegramClient) {
       throw new Error("telegramClient is required");
     }
     this.telegramClient = telegramClient;
+    this.isChannel = Boolean(isChannel);
   }
 
   /**
    * Send a single quiz to a chat
    * Handles photos, character limits, and inline vs split message formatting
    */
-  public async sendQuiz(chatId: string, quiz: Quiz): Promise<void> {
+  public async sendQuiz(chatId: string, quiz: Quiz): Promise<string | null> {
     this.validateQuiz(quiz);
 
     const preparedQuiz = this.prepareQuiz(quiz);
@@ -98,10 +115,10 @@ export class QuizSender {
     }
 
     if (preparedQuiz.needsSplitMessage) {
-      await this.sendSplitQuiz(chatId, quiz, preparedQuiz);
-    } else {
-      await this.sendInlineQuiz(chatId, quiz, preparedQuiz);
+      return this.sendSplitQuiz(chatId, quiz, preparedQuiz);
     }
+
+    return this.sendInlineQuiz(chatId, quiz, preparedQuiz);
   }
 
   /**
@@ -111,7 +128,7 @@ export class QuizSender {
   public async sendAll(
     chatId: string,
     quizzes: Quiz[],
-    { delayMs = 2000, onSuccess, onFailure }: QuizSenderOptions = {},
+    { delayMs = 2000, onSuccess, onPollSent, onFailure }: QuizSenderOptions = {},
   ): Promise<void> {
     if (!quizzes || quizzes.length === 0) {
       LoggerService.warn("No quizzes to send");
@@ -127,7 +144,11 @@ export class QuizSender {
 
       while (!sent) {
         try {
-          await this.sendQuiz(chatId, quizzes[index]);
+          const pollId = await this.sendQuiz(chatId, quizzes[index]);
+
+          if (pollId && onPollSent) {
+            await onPollSent(index, pollId, quizzes[index]);
+          }
 
           if (onSuccess) {
             await onSuccess(index);
@@ -220,7 +241,7 @@ export class QuizSender {
     chatId: string,
     quiz: Quiz,
     preparedQuiz: PreparedQuiz,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const payload: SendPollPayload = {
       question: quiz.question,
       options: preparedQuiz.originalOptions,
@@ -228,11 +249,17 @@ export class QuizSender {
       correct_option_id: quiz.correctAnswerId,
       explanation: preparedQuiz.markdownSpoilerExplanation,
       explanation_parse_mode: "MarkdownV2",
+      is_anonymous: this.isChannel,
       allows_multiple_answers: false,
     };
 
-    await this.telegramClient.sendPoll(chatId, payload);
+    const response = (await this.telegramClient.sendPoll(
+      chatId,
+      payload,
+    )) as TelegramSendPollResponse;
     LoggerService.debug(`Inline quiz sent: ${quiz.question}`);
+
+    return response?.result?.poll?.id || null;
   }
 
   /**
@@ -243,7 +270,7 @@ export class QuizSender {
     chatId: string,
     quiz: Quiz,
     preparedQuiz: PreparedQuiz,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const messageText = this.buildSplitMessage(preparedQuiz);
 
     // Send question and explanation as HTML formatted message
@@ -251,6 +278,8 @@ export class QuizSender {
     await this.sleep(500);
 
     // Send poll separately
+    console.log('Got here');
+    console.log('Is channel', this.isChannel);
     const payload: SendPollPayload = {
       question: LONG_QUIZ_QUESTION,
       options: preparedQuiz.hasLongOption
@@ -258,11 +287,17 @@ export class QuizSender {
         : preparedQuiz.originalOptions,
       type: "quiz",
       correct_option_id: quiz.correctAnswerId,
+      is_anonymous: this.isChannel,
       allows_multiple_answers: false,
     };
 
-    await this.telegramClient.sendPoll(chatId, payload);
+    const response = (await this.telegramClient.sendPoll(
+      chatId,
+      payload,
+    )) as TelegramSendPollResponse;
     LoggerService.debug(`Split quiz sent: ${quiz.question}`);
+
+    return response?.result?.poll?.id || null;
   }
 
   /**

@@ -47,6 +47,7 @@ export class QuizzesValidationSchema {
 
   public static sendQuizzesBodySchema = z.object({
     delayMs: z.coerce.number().int().min(0).default(2000),
+    retryWrongAfterMinutes: z.coerce.number().int().min(0).default(0),
     quizzes: z
       .array(this.quizSchema)
       .min(1, "quizzes must be a non-empty array"),

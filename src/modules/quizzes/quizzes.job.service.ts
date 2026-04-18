@@ -8,4 +8,5 @@ export const quizProcesser = async (job) =>
     quizzes: job.data.quizzes,
     cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME,
     delayMs: Number(job.data.delayMs || 2000),
+    retryWrongAfterMinutes: Number(job.data.retryWrongAfterMinutes || 0),
   });

@@ -9,6 +9,7 @@ import { healthRouter } from "./src/modules/health/health.route";
 import { imageRouter } from "./src/modules/images/images.route";
 import { jobsRouter } from "./src/modules/jobs/jobs.route";
 import { quizzesRouter } from "./src/modules/quizzes/quizzes.route";
+import { telegramRouter } from "./src/modules/telegram/telegram.route";
 import CustomError from "./src/utils/customError";
 import { HTTPStatusText } from "./src/types/httpStatusText";
 
@@ -21,6 +22,7 @@ import { authRouter } from "./src/modules/auth/auth.route";
 import { auditLog } from "./src/middlewares/auditLog";
 import { startHealthPublisher } from "./src/modules/health/health.service";
 import { errorHandler } from "./src/utils/errorHandler";
+import { WrongAnswerRetryWorker } from "./src/services/wrongAnswerRetryWorker";
 
 export const buildApiServer = async (): Promise<ApiServer> => {
   // Initialize MongoDB connection and job queue before starting the server
@@ -76,6 +78,7 @@ export const buildApiServer = async (): Promise<ApiServer> => {
   app.use(auditLog);
 
   app.use("/health", healthRouter);
+  app.use("/telegram", telegramRouter);
   app.use("/auth", authRouter);
   app.use("/images", imageRouter);
   app.use("/jobs", jobsRouter);
@@ -90,6 +93,8 @@ export const buildApiServer = async (): Promise<ApiServer> => {
 
   // Starting the health SSE publisher to emit health snapshots at regular intervals for real-time monitoring
   startHealthPublisher();
+  // Starting the worker that retries sending quizzes for which users gave wrong answers after a certain time, this helps in improving user engagement and quiz completion rates by giving users another chance to answer questions they got wrong.
+  WrongAnswerRetryWorker.start();
 
   const runWorker = () => {
     const shouldRunWorker =
