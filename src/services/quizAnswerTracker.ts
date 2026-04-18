@@ -24,6 +24,14 @@ interface AnswerRecord {
   updatedAt: Date;
 }
 
+interface InitiatedConversationRecord {
+  _id?: ObjectId;
+  ownerUserId: string;
+  telegramUserId: string;
+  initiatedAt: Date;
+  updatedAt: Date;
+}
+
 export interface WrongAnswerRetryRecord {
   _id?: ObjectId;
   ownerUserId: string;
@@ -57,6 +65,8 @@ export class QuizAnswerTracker {
   private static readonly POLLS_COLLECTION = "quiz_sent_polls";
   private static readonly ANSWERS_COLLECTION = "quiz_answers";
   private static readonly RETRIES_COLLECTION = "quiz_wrong_retries";
+  private static readonly INITIATED_CONVERSATIONS_COLLECTION =
+    "telegram_initiated_conversations";
   private static indexesEnsured = false;
 
   private static getDb(): Db {
@@ -74,6 +84,10 @@ export class QuizAnswerTracker {
 
   private static getRetriesCollection(): Collection<WrongAnswerRetryRecord> {
     return this.getDb().collection(this.RETRIES_COLLECTION);
+  }
+
+  private static getInitiatedConversationsCollection(): Collection<InitiatedConversationRecord> {
+    return this.getDb().collection(this.INITIATED_CONVERSATIONS_COLLECTION);
   }
 
   private static async ensureIndexes(): Promise<void> {
@@ -114,8 +128,61 @@ export class QuizAnswerTracker {
       { key: { updatedAt: -1 }, name: "retry_updated_idx" },
     ]);
 
+    await this.getInitiatedConversationsCollection().createIndexes([
+      {
+        key: { ownerUserId: 1, telegramUserId: 1 },
+        unique: true,
+        name: "uniq_initiated_owner_user",
+      },
+      { key: { updatedAt: -1 }, name: "initiated_updated_idx" },
+    ]);
+
     // Now the indexes are set
     this.indexesEnsured = true;
+  }
+
+  public static async markUserInitiatedConversation({
+    ownerUserId,
+    telegramUserId,
+  }: {
+    ownerUserId: string;
+    telegramUserId: string;
+  }): Promise<void> {
+    await this.ensureIndexes();
+
+    const now = new Date();
+
+    await this.getInitiatedConversationsCollection().updateOne(
+      { ownerUserId, telegramUserId },
+      {
+        $set: {
+          updatedAt: now,
+        },
+        $setOnInsert: {
+          ownerUserId,
+          telegramUserId,
+          initiatedAt: now,
+        },
+      },
+      { upsert: true },
+    );
+  }
+
+  public static async hasUserInitiatedConversation({
+    ownerUserId,
+    telegramUserId,
+  }: {
+    ownerUserId: string;
+    telegramUserId: string;
+  }): Promise<boolean> {
+    await this.ensureIndexes();
+
+    const record = await this.getInitiatedConversationsCollection().findOne(
+      { ownerUserId, telegramUserId },
+      { projection: { _id: 1 } },
+    );
+
+    return Boolean(record?._id);
   }
 
   public static async trackSentPoll({

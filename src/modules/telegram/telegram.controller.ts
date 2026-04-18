@@ -29,6 +29,21 @@ export class TelegramController {
       // The relevant information is extracted and passed to the QuizAnswerTracker service to keep track of users' answers and manage retries for wrong answers.
       const update = req.body || {};
       const message = update?.message;
+      const messageText = String(message?.text || "").trim();
+      const isStartCommand = /^\/start(?:\s|$)/i.test(messageText);
+      const messageFromId = String(message?.from?.id || "").trim();
+      const isPrivateChat = String(message?.chat?.type || "") === "private";
+
+      if (isStartCommand && isPrivateChat && messageFromId) {
+        await QuizAnswerTracker.markUserInitiatedConversation({
+          ownerUserId: user.id,
+          telegramUserId: messageFromId,
+        });
+
+        LoggerService.info(
+          `Stored initiated conversation for owner ${user.id} and Telegram user ${messageFromId}`,
+        );
+      }
 
       console.log(message);
       if (message?.chat) {

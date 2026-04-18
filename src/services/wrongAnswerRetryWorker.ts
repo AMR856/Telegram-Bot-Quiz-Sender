@@ -108,6 +108,29 @@ export class WrongAnswerRetryWorker {
       LoggerService.info(
         `Initializing retry for user ${item.telegramUserId} and quiz ${item.quiz.question}`,
       );
+
+      const hasInitiatedConversation =
+        await QuizAnswerTracker.hasUserInitiatedConversation({
+          ownerUserId: item.ownerUserId,
+          telegramUserId: item.telegramUserId,
+        });
+
+      if (!hasInitiatedConversation) {
+        const retryAfterMinutes = Math.min(
+          Math.max(1, Number(process.env.RETRY_WAIT_FOR_START_MINUTES || 10)),
+          1440,
+        );
+        await QuizAnswerTracker.markRetryFailed(
+          item._id,
+          "User has not started the bot yet (/start required)",
+          retryAfterMinutes,
+        );
+        LoggerService.warn(
+          `Deferring wrong-answer retry for user ${item.telegramUserId} until they send /start to the bot`,
+        );
+        return;
+      }
+
       // Constructing a sender instance to resend the quiz to the user. The sender is configured with a TelegramClient that uses the bot token from the owner user to authenticate with the Telegram API. The sender will attempt to resend the quiz associated with the retry record to the Telegram user ID specified in the record.
       const sender = new QuizSender({
         telegramClient: new TelegramClient({
