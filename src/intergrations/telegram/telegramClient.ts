@@ -20,6 +20,10 @@ interface PhotoOptions {
   filename?: string;
 }
 
+interface SendMessageOptions {
+  parseMode?: "HTML" | "Markdown" | "MarkdownV2";
+}
+
 export class TelegramClient {
   private readonly baseUrl: string;
   private readonly isChannel: boolean;
@@ -41,6 +45,7 @@ export class TelegramClient {
   public async sendMessage(
     chatId: string | number,
     text: string,
+    options: SendMessageOptions = {},
   ): Promise<any> {
     // The sendMessage method is used to send a text message to a specified chat ID.
     // It constructs the payload with the chat ID, message text, and parse mode (set to HTML for rich formatting).
@@ -49,7 +54,7 @@ export class TelegramClient {
     return this.post("sendMessage", {
       chat_id: chatId,
       text,
-      parse_mode: "HTML",
+      parse_mode: options.parseMode || "HTML",
       ...(this.isChannel ? { disable_notification: false } : {}),
     });
   }

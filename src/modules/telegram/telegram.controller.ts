@@ -4,8 +4,32 @@ import CustomError from "../../utils/customError";
 import { UserModel } from "../auth/auth.model";
 import { QuizAnswerTracker } from "../../services/quizAnswerTracker";
 import { LoggerService } from "../../utils/logger";
+import { TelegramClient } from "../../intergrations/telegram/telegramClient";
 
 const MESSAGES_LOG_FILE = "logs/messages.log";
+const TELEGRAM_PROFILE_COMMAND_RESPONSES: Record<string, string> = {
+  github: "📌 GitHub: https://github.com/AMR856",
+  linkedin: "💼 LinkedIn: https://www.linkedin.com/in/amr-alnus-64a4ab244/",
+  portfolio: "🌐 Portfolio: https://amralnus-backend.me/",
+  about: `👤 <b>About Me</b>
+
+Backend Engineer | Node.js | Distributed Systems
+Electronics & Communication Engineering Student
+Alexandria University (Graduating Aug 2026)
+
+📌 <a href="https://github.com/AMR856">GitHub</a> |
+<a href="https://www.linkedin.com/in/amr-alnus-64a4ab244/">LinkedIn</a> |
+<a href="https://amralnus-backend.me/">Portfolio</a>`,
+  help: `📋 <b>Available Commands</b>
+
+/github - View my GitHub profile
+/linkedin - View my LinkedIn profile
+/portfolio - View my portfolio website
+/about - Get information about me
+/help - Show this menu`,
+};
+
+const TELEGRAM_PROFILE_COMMANDS_WITH_HTML = new Set(["about", "help"]);
 
 export class TelegramController {
   public static async webhook(req: Request, res: Response, next: NextFunction) {
@@ -31,6 +55,8 @@ export class TelegramController {
       const message = update?.message;
       const messageText = String(message?.text || "").trim();
       const isStartCommand = /^\/start(?:\s|$)/i.test(messageText);
+      const commandMatch = messageText.match(/^\/(\w+)(?:@\w+)?(?:\s|$)/i);
+      const command = String(commandMatch?.[1] || "").toLowerCase();
       const messageFromId = String(message?.from?.id || "").trim();
       const isPrivateChat = String(message?.chat?.type || "") === "private";
 
@@ -43,6 +69,27 @@ export class TelegramController {
         LoggerService.info(
           `Stored initiated conversation for owner ${user.id} and Telegram user ${messageFromId}`,
         );
+      }
+
+      if (command) {
+        const responseMessage =
+          TELEGRAM_PROFILE_COMMAND_RESPONSES[command] ||
+          "Command not found. Type /help for available commands.";
+
+        const telegramClient = new TelegramClient({
+          baseUrl: `https://api.telegram.org/bot${user.botToken}`,
+          isChannel: user.isChannel,
+        });
+
+        await telegramClient.sendMessage(message?.chat?.id, responseMessage, {
+          parseMode: TELEGRAM_PROFILE_COMMANDS_WITH_HTML.has(command)
+            ? "HTML"
+            : undefined,
+        });
+
+        return res
+          .status(200)
+          .json({ status: HTTPStatusText.SUCCESS, accepted: true });
       }
 
       console.log(message);
