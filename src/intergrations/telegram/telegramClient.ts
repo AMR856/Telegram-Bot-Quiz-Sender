@@ -4,6 +4,7 @@ import FormData from "form-data";
 import path from "path";
 import { HTTPStatusText } from "../../types/httpStatusText";
 import CustomError from "../../utils/customError";
+import { LoggerService } from "../../utils/logger";
 
 const TELEGRAM_URL_CONTENT_FAILURE_PATTERNS = [
   "failed to get http url content",
@@ -120,12 +121,17 @@ export class TelegramClient {
     chatId: string | number,
     payload: Record<string, any>,
   ): Promise<any> {
+    try {
     return this.post("sendPoll", {
       chat_id: chatId,
       ...payload,
       // disabling notfication is set to false if it's a channel
       ...(this.isChannel ? { disable_notification: false } : {}),
     });
+    }
+    catch (err){
+      LoggerService.info(`Failed to send poll via Telegram API: ${(err as AxiosError).message}`);
+    }
   }
 
   private isLocalFile(filePath: string): boolean {
