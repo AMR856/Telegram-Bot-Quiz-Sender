@@ -15,6 +15,7 @@ export const DEFAULT_BACKEND_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || 'http://localhost:3000'
 export const DEFAULT_IMAGES_LIMIT = '30'
 export const DEFAULT_DELAY_MS = 1000
+export const DEFAULT_RETRY_WRONG_AFTER_MINUTES = 0
 export const IMAGE_CAROUSEL_INTERVAL = 3500
 export const TOAST_DURATION = 3000
 export const MAX_UPLOAD_FILES = 10

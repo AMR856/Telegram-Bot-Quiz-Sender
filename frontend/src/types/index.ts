@@ -58,6 +58,7 @@ export interface QuizQuestion {
 export interface QuizSendPayload {
   quizzes: QuizQuestion[]
   delayMs: number
+  retryWrongAfterMinutes: number
 }
 
 /**

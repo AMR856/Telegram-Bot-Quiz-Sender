@@ -13,6 +13,7 @@ import {
   DEFAULT_BACKEND_URL,
   DEFAULT_IMAGES_LIMIT,
   DEFAULT_DELAY_MS,
+  DEFAULT_RETRY_WRONG_AFTER_MINUTES,
   TAB_IDS,
 } from '@/lib/constants'
 import { useHealthCheck } from './useHealthCheck'
@@ -43,6 +44,9 @@ export function useAppState() {
 
   const [quizzes, setQuizzes] = useState(SAMPLE_QUIZ_JSON)
   const [delayMs, setDelayMs] = useState(DEFAULT_DELAY_MS)
+  const [retryWrongAfterMinutes, setRetryWrongAfterMinutes] = useState(
+    DEFAULT_RETRY_WRONG_AFTER_MINUTES,
+  )
   const [jobId, setJobId] = useState('')
 
   const [lastAction, setLastAction] = useState('none')
@@ -247,6 +251,7 @@ export function useAppState() {
         JSON.stringify({
           quizzes: parsed,
           delayMs: Number(delayMs) || 0,
+          retryWrongAfterMinutes: Math.max(0, Number(retryWrongAfterMinutes) || 0),
         }),
         {
           'Content-Type': 'application/json',
@@ -263,7 +268,7 @@ export function useAppState() {
 
       return result
     })
-  }, [quizzes, delayMs, runAction, toast, getApiKeyOrThrow])
+  }, [quizzes, delayMs, retryWrongAfterMinutes, runAction, toast, getApiKeyOrThrow])
 
   const checkJob = useCallback(async () => {
     const result = await runAction('GET /jobs/:id', () =>
@@ -397,6 +402,8 @@ export function useAppState() {
     setQuizzes,
     delayMs,
     setDelayMs,
+    retryWrongAfterMinutes,
+    setRetryWrongAfterMinutes,
     jobId,
     setJobId,
     sendQuizzes,

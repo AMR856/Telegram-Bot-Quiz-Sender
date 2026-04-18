@@ -68,9 +68,11 @@ export default function Page() {
           <QuizzesTab
             quizzes={state.quizzes}
             delayMs={state.delayMs}
+            retryWrongAfterMinutes={state.retryWrongAfterMinutes}
             loading={state.loading}
             onQuizzesChange={state.setQuizzes}
             onDelayChange={state.setDelayMs}
+            onRetryWrongAfterMinutesChange={state.setRetryWrongAfterMinutes}
             onSend={state.sendQuizzes}
           />
         )}

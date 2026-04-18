@@ -3,18 +3,22 @@
 interface QuizzesTabProps {
   quizzes: string
   delayMs: number
+  retryWrongAfterMinutes: number
   loading: boolean
   onQuizzesChange: (value: string) => void
   onDelayChange: (value: number) => void
+  onRetryWrongAfterMinutesChange: (value: number) => void
   onSend: () => void
 }
 
 export function QuizzesTab({
   quizzes,
   delayMs,
+  retryWrongAfterMinutes,
   loading,
   onQuizzesChange,
   onDelayChange,
+  onRetryWrongAfterMinutesChange,
   onSend,
 }: QuizzesTabProps) {
   return (
@@ -37,6 +41,21 @@ export function QuizzesTab({
         value={delayMs}
         onChange={(e) => onDelayChange(Number(e.target.value))}
         className="w-full"
+      />
+
+      <label className="text-sm text-slate-300" htmlFor="retryWrongAfterMinutes">
+        Retry wrong answer after (minutes)
+      </label>
+      <input
+        id="retryWrongAfterMinutes"
+        type="number"
+        min="0"
+        step="1"
+        value={retryWrongAfterMinutes}
+        onChange={(e) =>
+          onRetryWrongAfterMinutesChange(Math.max(0, Number(e.target.value) || 0))
+        }
+        className="input"
       />
 
       <button
