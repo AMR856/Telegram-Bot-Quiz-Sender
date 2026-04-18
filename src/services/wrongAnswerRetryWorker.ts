@@ -152,8 +152,6 @@ export class WrongAnswerRetryWorker {
       // Mark the quiz as sent
       await QuizAnswerTracker.markRetrySent(item._id);
     } catch (error) {
-      console.log(error);
-      LoggerService.info(error);
       LoggerService.error(`Full error details: ${WrongAnswerRetryWorker.captureErrorAsString(error)}`);
       if (error instanceof Error && 'response' in error) {
         const axiosError = error as any;

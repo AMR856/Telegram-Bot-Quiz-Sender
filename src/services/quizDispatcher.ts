@@ -69,7 +69,6 @@ export class QuizDispatcher {
       // This callback is responsible for tracking the sent poll in the QuizAnswerTracker service, 
       // which allows the application to keep track of which quizzes have been sent to which users and manage retries for wrong answers after a certain time.
       onPollSent: async (_index, pollId, quiz) => {
-        console.log('Got here');
         await QuizAnswerTracker.trackSentPoll({
           ownerUserId: user.id,
           pollId,

@@ -285,8 +285,6 @@ export class QuizSender {
     await this.sleep(500);
 
     // Send poll separately
-    console.log('Got here');
-    console.log('Is channel', this.isChannel);
     const payload: SendPollPayload = {
       question: LONG_QUIZ_QUESTION,
       options: preparedQuiz.hasLongOption

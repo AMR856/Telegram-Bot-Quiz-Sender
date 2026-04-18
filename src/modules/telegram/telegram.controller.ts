@@ -9,15 +9,15 @@ import { TelegramClient } from "../../intergrations/telegram/telegramClient";
 const MESSAGES_LOG_FILE = "logs/messages.log";
 const TELEGRAM_PROFILE_COMMAND_RESPONSES: Record<string, string> = {
   github: "📌 GitHub: https://github.com/AMR856",
+  start: "Hello this is Amr Alnus Telegram quiz manager, hope you'll enjoy it.",
   linkedin: "💼 LinkedIn: https://www.linkedin.com/in/amr-alnus-64a4ab244/",
   portfolio: "🌐 Portfolio: https://amralnus-backend.me/",
   about: `👤 <b>About Me</b>
 
-Backend Engineer | Node.js | Distributed Systems
+Backend Engineer | Node.js | NestJS
 Electronics & Communication Engineering Student
-Alexandria University (Graduating Aug 2026)
 
-📌 <a href="https://github.com/AMR856">GitHub</a> |
+<a href="https://github.com/AMR856">GitHub</a> |
 <a href="https://www.linkedin.com/in/amr-alnus-64a4ab244/">LinkedIn</a> |
 <a href="https://amralnus-backend.me/">Portfolio</a>`,
   help: `📋 <b>Available Commands</b>
@@ -92,7 +92,6 @@ export class TelegramController {
           .json({ status: HTTPStatusText.SUCCESS, accepted: true });
       }
 
-      console.log(message);
       if (message?.chat) {
         LoggerService.logToFile(
           MESSAGES_LOG_FILE,
