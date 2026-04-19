@@ -1,20 +1,43 @@
-# Telegram Quiz API — Multi-Tenant Service
+# Telegram Quiz Bot — Production-Ready API & Legacy Sender
 
-A **scalable, multi-tenant API** for delivering Telegram quizzes and polls with image support. Each user brings their own Telegram bot and manages quiz distribution independently through a shared backend.
+A **TypeScript backend** for delivering interactive Telegram quizzes with **two operational modes**: multi-tenant API (async job-based) or single-bot legacy mode (synchronous batch sender). Uses Express, MongoDB, Redis, BullMQ, and Cloudinary.
 
-> **Key Feature**: Queue-based architecture prevents rate limiting and keeps API responses fast.
+> **Two Flavors**: API mode (`npm start`) for scalable multi-user deployments, or legacy mode (`npm run send-all`) for single-bot backward compatibility.
 
 ---
 
-## What This Does
+## Architecture Overview
 
-- **Multi-tenant** — Each user has their own Telegram bot, chat, and image folder
-- **Image support** — Upload quiz images to Cloudinary; organize by user automatically
-- **Non-blocking sends** — Enqueue quiz batches in Redis; send in background
-- **Job tracking** — Poll status of queued jobs without waiting
-- **Rate limit safe** — Built-in delays between Telegram sends
-- **Audit logging** — Track all API requests for security/compliance
-- **Encrypted tokens** — Bot tokens encrypted at rest in MongoDB
+### API Mode (Default: `npm start`)
+
+- **Multi-user capable**: Each user signs in with their own Telegram bot token
+- **Async job queue**: Quizzes enqueued in Redis, processed by background worker
+- **Real-time status**: Poll job progress without blocking
+- **Webhook support**: Receive Telegram poll answers for analytics and retry logic
+- **Image hosting**: Upload/manage quiz images on Cloudinary per user
+
+### Legacy Mode (`npm run send-all`)
+
+- **Single bot only**: Pre-configured via `BOT_TOKEN` and `CHAT_ID` environment variables
+- **Synchronous**: Reads quiz JSON file, sends all quizzes in sequence
+- **Simple**: No authentication, no job tracking, no API
+- **Backward compatible**: Migrated from shell scripts; kept for existing workflows
+
+---
+
+## Key Features
+
+✅ **Multi-tenant API** (API mode)  
+✅ **Image management** — Upload to Cloudinary, organize by user  
+✅ **Non-blocking delivery** — Queue-based with background worker  
+✅ **Real-time job tracking** — REST API status polling  
+✅ **Rate limiting** — Global + auth endpoint protections  
+✅ **Audit logging** — Complete request trail to MongoDB  
+✅ **Token encryption** — Bot tokens encrypted at rest  
+✅ **Wrong-answer retry** — Auto-resend to incorrect answerers  
+✅ **Health monitoring** — REST endpoint + SSE stream  
+✅ **Webhook ingestion** — Receive poll answers from Telegram  
+✅ **Legacy support** — Synchronous mode for single-bot use  
 
 ---
 
@@ -22,22 +45,22 @@ A **scalable, multi-tenant API** for delivering Telegram quizzes and polls with 
 
 ### Prerequisites
 
-- **Node.js** 18+ ([download](https://nodejs.org/))
-- **Redis** ([install locally](https://redis.io/download) or use Docker)
-- **MongoDB** ([install locally](https://www.mongodb.com/try/download/community) or use MongoDB Atlas)
-- **Cloudinary account** ([free tier available](https://cloudinary.com/))
+- **Node.js** 20+ ([download](https://nodejs.org/))
+- **Redis** (local, Docker, or cloud URL)
+- **MongoDB** (local, Docker, or MongoDB Atlas)
+- **Cloudinary** account (free tier available)
 
 ### 1. Clone & Install
 
 ```bash
-git clone <your-repo>
-cd telegram-quiz-api
+git clone https://github.com/AMR856/Telegram-Bot-Quiz-Sender.git
+cd Telegram-Bot-Quiz-Sender/backend
 npm install
 ```
 
-### 2. Configure Environment
+### 2. Set Up Environment
 
-Create a `.env` file in the root directory:
+Create `.env` in `backend/` directory:
 
 ```bash
 # Server
@@ -49,37 +72,36 @@ ERROR_LOG_FILE=logs/error.log
 
 # Database
 MONGODB_URI=mongodb://127.0.0.1:27017/telegram_quiz_bot
-MONGODB_DB_NAME=telegram_quiz_bot  # Optional, extracted from URI if omitted
 
 # Queue (Redis)
 REDIS_URL=redis://127.0.0.1:6379
 RUN_QUEUE_WORKER=true
 
-# Cloudinary (Image hosting)
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Security
-BOT_TOKEN_ENCRYPTION_KEY=your_long_random_secret_key_min_32_chars
+# Security: Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+BOT_TOKEN_ENCRYPTION_KEY=your_32char_secret_key_here
 
-# Telegram webhook for poll-answer listener (required for wrong-answer tracking)
-WEBHOOK_BASE_URL=https://your-public-api-domain.com
+# Telegram Webhooks
+WEBHOOK_BASE_URL=https://your-public-domain.com
 REGISTER_WEBHOOK_ON_SIGNIN=true
 
-# Wrong-answer retry worker tuning
+# Wrong-answer retry worker
 RUN_WRONG_ANSWER_RETRY_WORKER=true
 WRONG_ANSWER_RETRY_INTERVAL_MS=30000
 WRONG_ANSWER_RETRY_BATCH_SIZE=50
 WRONG_ANSWER_RETRY_BACKOFF_MINUTES=5
 
-# API Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000      # 15 minutes
-RATE_LIMIT_MAX=120               # 120 requests per window
-AUTH_RATE_LIMIT_WINDOW_MS=900000 # Sign-in rate limit window
-AUTH_RATE_LIMIT_MAX=20           # 20 sign-ins per window
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=120
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX=20
 
-# Legacy single-bot mode (optional, for backward compatibility)
+# ===== LEGACY MODE ONLY (npm run send-all) =====
 BOT_TOKEN=your_telegram_bot_token
 CHAT_ID=-1001234567890
 IS_CHANNEL=true
@@ -87,94 +109,58 @@ SUCCESS_LOG_FILE=logs/send-success.log
 FAILED_LOG_FILE=logs/failed-messages.log
 ```
 
-**Get these values:**
-- **Cloudinary**: Sign up at [cloudinary.com](https://cloudinary.com/), grab credentials from Dashboard
-- **MongoDB**: Local install or use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier)
-- **Redis**: Install via `brew install redis` (macOS) or Docker
-- **BOT_TOKEN_ENCRYPTION_KEY**: Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+**How to get these values:**
+- **Cloudinary**: Sign up at [cloudinary.com](https://cloudinary.com/), find credentials in Dashboard
+- **MongoDB**: Install locally or use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) free tier
+- **Redis**: `brew install redis` (macOS), or use a cloud Redis service
+- **BOT_TOKEN_ENCRYPTION_KEY**: 
+  ```bash
+  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+  ```
+- **BOT_TOKEN**: Get from [@BotFather](https://t.me/botfather) with `/newtoken`
 
-### 3. Start the Server
+### 3. Run API Mode
 
-**API mode** (recommended):
+**Development (auto-reload):**
 ```bash
-npm run start
+npm run dev
 ```
 
-**Legacy single-bot mode** (for backward compatibility):
+**Production:**
+```bash
+npm run build
+npm start
+```
+
+API listens on `http://localhost:3000`
+
+### 4. Run Legacy Mode
+
 ```bash
 npm run send-all
 ```
 
-**With Docker Compose** (includes Redis):
-```bash
-docker compose up --build
-```
-
-### 4. Deploy to Heroku
-
-This branch is ready for Heroku with:
-- `Procfile` at repo root using `web: npm start`
-- `heroku-postbuild` script to compile TypeScript before runtime
-
-Recommended setup:
-
-1. Create app and set buildpack
-```bash
-heroku create <your-app-name>
-heroku buildpacks:set heroku/nodejs
-```
-
-2. Provision required add-ons
-```bash
-heroku addons:create heroku-redis:mini
-```
-
-Use MongoDB Atlas and Cloudinary as external services.
-
-3. Configure required env vars
-```bash
-heroku config:set \
-  NODE_ENV=production \
-  RUN_QUEUE_WORKER=true \
-  BOT_TOKEN_ENCRYPTION_KEY=<your-secret> \
-  MONGODB_URI=<your-mongodb-uri> \
-  MONGODB_DB_NAME=telegram_quiz_bot \
-  REDIS_URL=<heroku-redis-url> \
-  CLOUDINARY_CLOUD_NAME=<cloud-name> \
-  CLOUDINARY_API_KEY=<api-key> \
-  CLOUDINARY_API_SECRET=<api-secret>
-```
-
-4. Deploy
-```bash
-git push heroku <branch-name>:main
-heroku logs --tail
-```
+This reads quizzes from `data/quizzes.json` and sends them synchronously.
 
 ---
 
-## API Endpoints
+## API Endpoints (API Mode Only)
 
 ### Authentication: Sign In
 
-**Endpoint:** `POST /auth/sign-in`
+**`POST /auth/sign-in`**
 
-**Purpose:** Get an API key for subsequent requests. Each user signs in with their own Telegram bot credentials.
+Each user signs in with their own Telegram bot credentials to get an API key.
 
-**Request Body:**
-```json
-{
-  "chatId": "-1003730571930",
-  "botToken": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-  "isChannel": true
-}
+```bash
+curl -X POST http://localhost:3000/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chatId": "-1003730571930",
+    "botToken": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
+    "isChannel": true
+  }'
 ```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `chatId` | string or number | Telegram chat/channel ID (negative for channels) |
-| `botToken` | string | Telegram Bot API token (get from [@BotFather](https://t.me/botfather)) |
-| `isChannel` | boolean | `true` for channels, `false` for direct chats (default: `true`) |
 
 **Response:**
 ```json
@@ -186,163 +172,160 @@ heroku logs --tail
     "cloudinaryFolder": "1003730571930"
   },
   "expiresIn": null,
-  "webhookUrl": "https://your-public-api-domain.com/telegram/webhook/<userId>/<secret>"
+  "webhookUrl": "https://your-api.com/telegram/webhook/<userId>/<secret>"
 }
 ```
 
-**cURL Example:**
-```bash
-curl -X POST http://localhost:3000/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chatId": "-1003730571930",
-    "botToken": "YOUR_BOT_TOKEN",
-    "isChannel": true
-  }'
-```
-
-**Save the `apiKey`** — you'll need it for all subsequent requests (in the `x-api-key` header).
+**Save the `apiKey`** for all subsequent requests in the `x-api-key` header.
 
 ---
 
-### Images: Upload to Cloudinary
+### Images: Upload
 
-**Endpoint:** `POST /images/upload`
+**`POST /images/upload`**
 
-**Auth required:** `x-api-key` header
+Upload a single image to Cloudinary.
 
-**Purpose:** Upload a quiz image to Cloudinary. Images are automatically organized in a folder based on your chat ID.
-
-**Request:**
 ```bash
 curl -X POST http://localhost:3000/images/upload \
-  -H "x-api-key: your_api_key_here" \
-  -F "image=@/path/to/quiz_image.jpg"
+  -H "x-api-key: your_api_key" \
+  -F "image=@quiz_image.jpg"
 ```
 
 **Response:**
 ```json
 {
-  "secureUrl": "https://res.cloudinary.com/your_cloud_name/image/upload/v1699564800/1003730571930/quiz_image.jpg",
+  "secureUrl": "https://res.cloudinary.com/cloud_name/image/upload/v1699564800/1003730571930/quiz_image.jpg",
   "publicId": "1003730571930/quiz_image"
 }
 ```
 
-**Use `publicId` in quiz objects** when sending quizzes (see next endpoint).
+Save the `publicId` to use in quiz objects.
 
 ---
 
-### Quizzes: Send Quiz Batch
+### Images: Bulk Upload
 
-**Endpoint:** `POST /quizzes/send`
+**`POST /images/upload-many`**
 
-**Auth required:** `x-api-key` header
+Upload multiple images at once (max 20).
 
-**Purpose:** Submit a batch of quizzes to be sent to your Telegram chat. Quizzes are enqueued and sent in the background; the API returns immediately with a job ID.
-
-**Request Body:**
-```json
-{
-  "delayMs": 2000,
-  "retryWrongAfterMinutes": 60,
-  "quizzes": [
-    {
-      "question": "What is the capital of France?",
-      "options": ["London", "Paris", "Berlin", "Madrid"],
-      "correctAnswerId": 1,
-      "explanation": "Paris is the capital of France.",
-      "image": "1003730571930/my_quiz_image"
-    },
-    {
-      "question": "True or False?",
-      "options": ["True", "False"],
-      "correctAnswerId": 0
-    }
-  ]
-}
+```bash
+curl -X POST http://localhost:3000/images/upload-many \
+  -H "x-api-key: your_api_key" \
+  -F "files=@image1.jpg" \
+  -F "files=@image2.jpg"
 ```
+
+---
+
+### Images: List
+
+**`GET /images`**
+
+List all your uploaded images.
+
+```bash
+curl http://localhost:3000/images \
+  -H "x-api-key: your_api_key"
+```
+
+---
+
+### Images: Delete
+
+**`DELETE /images/:publicId(*)`**
+
+Delete an image (supports nested paths like `folder/subfolder/image`).
+
+```bash
+curl -X DELETE http://localhost:3000/images/1003730571930/quiz_image \
+  -H "x-api-key: your_api_key"
+```
+
+---
+
+### Quizzes: Send Batch
+
+**`POST /quizzes/send`**
+
+Submit quizzes for delivery. They're enqueued immediately; API returns a job ID without waiting.
+
+```bash
+curl -X POST http://localhost:3000/quizzes/send \
+  -H "x-api-key: your_api_key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delayMs": 2000,
+    "retryWrongAfterMinutes": 60,
+    "quizzes": [
+      {
+        "question": "What is the capital of France?",
+        "options": ["London", "Paris", "Berlin", "Madrid"],
+        "correctAnswerId": 1,
+        "explanation": "Paris is the capital of France.",
+        "image": "1003730571930/my_quiz_image"
+      }
+    ]
+  }'
+```
+
+**Request Fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `delayMs` | number | Milliseconds to wait between sending each quiz (default: 2000, prevents rate limiting) |
-| `retryWrongAfterMinutes` | number | If greater than 0, wrong answers are re-sent to the answering user in a private chat after this delay |
-| `quizzes` | array | Array of quiz objects |
-| `quizzes[].question` | string | The quiz question (required) |
-| `quizzes[].options` | array | 2–8 answer choices (required) |
-| `quizzes[].correctAnswerId` | number | Index of correct answer (0-based, required) |
+| `delayMs` | number | Wait between sends in ms (default: 2000, recommended to avoid rate limits) |
+| `retryWrongAfterMinutes` | number | If > 0, retry wrong answers to user after N minutes |
+| `quizzes` | array | Quiz objects |
+| `quizzes[].question` | string | The quiz question |
+| `quizzes[].options` | array | 2–8 answer choices |
+| `quizzes[].correctAnswerId` | number | 0-based index of correct answer |
 | `quizzes[].explanation` | string | Feedback shown after answering (optional) |
-| `quizzes[].image` | string | Image path or URL (optional, see image handling below) |
+| `quizzes[].image` | string | Image path — supports three formats |
 
-**Image Handling:**
-
-The `image` field supports three formats:
+**Image Formats:**
 
 1. **Cloudinary public ID** (recommended)
    ```json
    "image": "1003730571930/quiz_image"
    ```
-   Converted to: `https://res.cloudinary.com/your_cloud_name/image/upload/1003730571930/quiz_image`
 
-2. **Full URL** (external or Cloudinary)
+2. **Full external URL**
    ```json
    "image": "https://example.com/quiz.jpg"
    ```
-   Used as-is.
 
-3. **Local file path** (legacy, file-based mode only)
+3. **Local file path** (legacy, API mode doesn't support this)
    ```json
    "image": "./images/quiz.jpg"
    ```
-   Resolved relative to file system. **Not supported in API mode.**
 
 **Response:**
 ```json
 {
-  "jobId": "job_abc123def456",
+  "jobId": "job_abc123def456xyz",
   "status": "queued",
-  "count": 2
+  "count": 5,
+  "message": "5 quizzes queued successfully"
 }
-```
-
-### Telegram Listener Webhook
-
-**Endpoint:** `POST /telegram/webhook/:userId/:secret`
-
-**Purpose:** Receives Telegram `poll_answer` updates, stores each user's answer, and schedules wrong answers for delayed retry.
-
-This endpoint is configured automatically on sign-in when `WEBHOOK_BASE_URL` is set and `REGISTER_WEBHOOK_ON_SIGNIN` is not `false`.
-
-**cURL Example:**
-```bash
-curl -X POST http://localhost:3000/quizzes/send \
-  -H "x-api-key: your_api_key_here" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "delayMs": 1500,
-    "quizzes": [
-      {
-        "question": "Which planet is closest to the Sun?",
-        "options": ["Venus", "Mercury", "Earth", "Mars"],
-        "correctAnswerId": 1,
-        "explanation": "Mercury is the closest planet to the Sun."
-      }
-    ]
-  }'
 ```
 
 ---
 
 ### Jobs: Check Status
 
-**Endpoint:** `GET /jobs/:jobId`
+**`GET /jobs/:jobId`**
 
-**Auth required:** `x-api-key` header
+Poll the job status without blocking. Job states: `waiting`, `active`, `completed`, `failed`.
 
-**Purpose:** Check the status of a queued job (e.g., whether quizzes have finished sending).
+```bash
+curl http://localhost:3000/jobs/job_abc123def456 \
+  -H "x-api-key: your_api_key"
+```
 
-**Response:**
+**Response Examples:**
 
-Queued:
+**Queued:**
 ```json
 {
   "id": "job_abc123def456",
@@ -352,113 +335,286 @@ Queued:
 }
 ```
 
-In progress:
+**In Progress:**
 ```json
 {
   "id": "job_abc123def456",
   "state": "active",
-  "progress": 1,
+  "progress": 2,
   "result": null
 }
 ```
 
-Completed:
+**Completed:**
 ```json
 {
   "id": "job_abc123def456",
   "state": "completed",
-  "progress": 2,
+  "progress": 5,
   "result": {
-    "sent": 2,
+    "sent": 5,
     "failed": 0,
     "errors": []
   }
 }
 ```
 
-**cURL Example:**
+---
+
+### Health: Status
+
+**`GET /health`**
+
+Check API and dependency health (no auth required).
+
 ```bash
-curl http://localhost:3000/jobs/job_abc123def456 \
-  -H "x-api-key: your_api_key_here"
+curl http://localhost:3000/health
+```
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-04-19T10:30:00Z",
+  "uptime": 3600,
+  "services": {
+    "mongodb": "connected",
+    "redis": "connected",
+    "queue": "ready"
+  },
+  "version": "1.0.0"
+}
 ```
 
 ---
 
-## Architecture
+### Health: Real-Time Stream (SSE)
 
-### Request Flow
+**`GET /health/stream`**
 
-```
-User API Request
-        ↓
-  Authentication (x-api-key)
-        ↓
-  Rate Limiting
-        ↓
-  Route Handler
-        ↓
-  Enqueue to Redis
-        ↓
-  Return Job ID (fast)
-        ↓
-Background Worker
-        ↓
-  Process Job
-        ↓
-  Send to Telegram
-        ↓
-  Update Job Status
+Subscribe to health metrics every 30 seconds via Server-Sent Events.
+
+```bash
+curl http://localhost:3000/health/stream
 ```
 
-### Key Components
+**JavaScript client:**
+```javascript
+const eventSource = new EventSource('http://localhost:3000/health/stream');
+eventSource.onmessage = (e) => console.log(JSON.parse(e.data));
+eventSource.onerror = () => eventSource.close();
+```
 
-| Component | Purpose |
-|-----------|---------|
-| **API Server** | Handles HTTP requests, auth, rate limiting |
-| **Redis Queue** | BullMQ queue for job management |
-| **Worker** | Background process that sends quizzes to Telegram |
-| **MongoDB** | Stores users, bot tokens (encrypted), audit logs |
-| **Cloudinary** | Image hosting and CDN |
+---
+
+### Telegram Webhook
+
+**`POST /telegram/webhook/:userId/:secret`**
+
+Receives poll answer updates from Telegram automatically (you don't call this).
+
+**What happens:**
+1. User answers a quiz poll in Telegram
+2. Telegram sends `poll_answer` update to this webhook
+3. We track the answer and correctness
+4. If `retryWrongAfterMinutes > 0`, we schedule a retry for incorrect answers
+
+Webhook URL is auto-generated on sign-in when `WEBHOOK_BASE_URL` is configured.
 
 ---
 
 ## Project Structure
 
 ```
-telegram-quiz-api/
-├── index.js                                 # Entrypoint (API + legacy mode)
-├── server.js                                # API server setup
-├── queue.js                                 # BullMQ queue and worker
-├── .env.example                             # Environment template
-├── docker-compose.yml                       # Docker setup
+backend/
+├── index.ts                               # Entry point (picks API vs legacy mode)
+├── server.ts                              # Express app setup
 ├── package.json
+├── tsconfig.json
 │
-├── lib/
-│   ├── api/
-│   │   ├── routes/
-│   │   │   └── apiRoutes.js                # API endpoints
-│   │   ├── middleware/
-│   │   │   ├── auth.js                     # API key authentication
-│   │   │   └── rateLimit.js                # Rate limiting
-│   │   └── services/
-│   │       ├── telegramAuthService.js      # Verify bot token
-│   │       └── quizJobService.js           # Queue job management
+├── src/
+│   ├── config/
+│   │   ├── mongo.ts                       # MongoDB connection
+│   │   ├── queue.ts                       # BullMQ setup
+│   │   ├── rateLimit.ts                   # Rate limiters
+│   │   └── upload.ts                      # Multer config
 │   │
-│   ├── integrations/
-│   │   ├── cloudinaryClient.js             # Cloudinary uploads
-│   │   └── telegramClient.js               # Telegram API wrapper
+│   ├── intergrations/                     # Note: typo in folder name (intergrations)
+│   │   ├── cloudinary/
+│   │   │   └── cloudinaryClient.ts
+│   │   └── telegram/
+│   │       ├── telegramAuth.ts
+│   │       └── telegramClient.ts
 │   │
-│   ├── quiz/
-│   │   ├── quizDispatchService.js          # Send queued quizzes
-│   │   ├── quizSender.js                   # Telegram send logic
-│   │   └── quizBot.js                      # Legacy send-all
+│   ├── middlewares/
+│   │   ├── auth.ts                        # x-api-key validation
+│   │   ├── auditLog.ts                    # Request logging
+│   │   └── validate.ts                    # Zod validation
 │   │
-│   └── models/
-│       └── userStore.js                    # User persistence
+│   ├── modules/
+│   │   ├── auth/                          # Sign-in endpoints
+│   │   ├── quizzes/                       # Quiz send logic + background worker
+│   │   ├── images/                        # Image upload/delete
+│   │   ├── jobs/                          # Job status polling
+│   │   ├── telegram/                      # Webhook receiver
+│   │   └── health/                        # Health checks + SSE
+│   │
+│   ├── services/                          # Core business logic
+│   │   ├── quizBot.ts                     # Legacy mode quiz sender
+│   │   ├── quizDispatcher.ts              # Quiz routing
+│   │   ├── quizSender.ts                  # Telegram API calls
+│   │   ├── quizMediaNormalizer.ts         # Image URL normalization
+│   │   ├── quizAnswerTracker.ts           # Poll answer tracking
+│   │   └── wrongAnswerRetryWorker.ts      # Retry worker logic
+│   │
+│   ├── types/
+│   │   └── httpStatusText.ts              # HTTP status codes
+│   │
+│   └── utils/
+│       ├── chatMediaResolver.ts           # Media URL resolution
+│       ├── customError.ts                 # Custom error class
+│       ├── errorHandler.ts                # Error middleware
+│       ├── escaper.ts                     # Telegram HTML escape
+│       ├── logger.ts                      # Winston logging
+│       ├── parser.ts                      # Parsing utilities
+│       └── tokenCipher.ts                 # AES-256-GCM encryption
 │
-└── utils/
-    ├── quizMedia.js                        # Media normalization
-    └── auditStore.js                       # Audit logging
+└── dist/                                  # Compiled JS (generated)
+```
+
+---
+
+## How It Works
+
+### API Mode Request Flow
+
+```
+User API Request (x-api-key header)
+           ↓
+   Rate Limiting Check
+           ↓
+   Authentication (validate API key)
+           ↓
+   Audit Log Entry
+           ↓
+   Route Handler (e.g., POST /quizzes/send)
+           ↓
+   Enqueue to Redis (BullMQ)
+           ↓
+   Return Job ID (HTTP 200 immediately)
+           ↓
+[Background Worker — Async]
+           ↓
+   Pull job from queue
+           ↓
+   Send each quiz to Telegram (respecting delayMs)
+           ↓
+   Store results in MongoDB
+           ↓
+   Job marked complete
+```
+
+### Legacy Mode Flow
+
+```
+npm run send-all
+           ↓
+   Load data/quizzes.json
+           ↓
+   Create QuizBot instance with BOT_TOKEN, CHAT_ID
+           ↓
+   Iterate each quiz
+           ↓
+   Send to Telegram (blocking, one at a time)
+           ↓
+   Write success/failure logs
+           ↓
+   Exit
+```
+
+---
+
+## Running & Development
+
+### Start API Mode
+
+**Development (auto-reload with tsx):**
+```bash
+npm run dev
+```
+
+**Production (compiled):**
+```bash
+npm run build
+npm start
+```
+
+**With worker enabled (required for quiz sending):**
+```bash
+# Worker runs in the same process as the API by default
+# If you set RUN_QUEUE_WORKER=false, jobs won't process
+export RUN_QUEUE_WORKER=true
+npm start
+```
+
+### Start Legacy Mode
+
+```bash
+npm run send-all
+```
+
+Requires:
+- `BOT_TOKEN` in `.env`
+- `CHAT_ID` in `.env`
+- `data/quizzes.json` file with quiz objects
+
+---
+
+## Testing the API (Full Flow)
+
+```bash
+# 1. Sign in
+curl -X POST http://localhost:3000/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chatId": "-1003730571930",
+    "botToken": "YOUR_BOT_TOKEN",
+    "isChannel": true
+  }' | jq .
+
+export API_KEY="key_from_response"
+
+# 2. Check health
+curl http://localhost:3000/health | jq .
+
+# 3. Upload an image
+curl -X POST http://localhost:3000/images/upload \
+  -H "x-api-key: $API_KEY" \
+  -F "image=@quiz.jpg" | jq .
+
+export IMAGE_ID="publicId_from_response"
+
+# 4. Send a quiz
+curl -X POST http://localhost:3000/quizzes/send \
+  -H "x-api-key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "delayMs": 2000,
+    "quizzes": [
+      {
+        "question": "What is 2 + 2?",
+        "options": ["3", "4", "5"],
+        "correctAnswerId": 1,
+        "image": "'$IMAGE_ID'"
+      }
+    ]
+  }' | jq .
+
+export JOB_ID="jobId_from_response"
+
+# 5. Poll job status (run multiple times)
+curl http://localhost:3000/jobs/$JOB_ID \
+  -H "x-api-key: $API_KEY" | jq .
 ```
 
 ---
@@ -467,7 +623,7 @@ telegram-quiz-api/
 
 ### Token Encryption
 
-Bot tokens are encrypted at rest in MongoDB using `BOT_TOKEN_ENCRYPTION_KEY`. Tokens are decrypted only at runtime when sending Telegram requests.
+Bot tokens stored in MongoDB are encrypted using `BOT_TOKEN_ENCRYPTION_KEY`. Decrypted only at runtime when sending to Telegram.
 
 **Generate a secure key:**
 ```bash
@@ -476,154 +632,220 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ### Rate Limiting
 
-All API endpoints are rate-limited to prevent abuse:
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| General APIs | 120 requests | 15 minutes |
-| `/auth/sign-in` | 20 requests | 15 minutes |
+- **General APIs**: 120 requests per 15 minutes
+- **Sign-in**: 20 requests per 15 minutes
 
 ### Audit Logging
 
-Every API request is logged to MongoDB (`audit_logs` collection) with:
+Every API request logged to MongoDB's `audit_logs` collection with:
+- User ID, chat ID
 - Request method, path, status code
-- User ID and chat ID (if authenticated)
-- Client IP and user agent
-- API key fingerprint
-
----
-
-## Docker Deployment
-
-### Local Development
-
-```bash
-docker compose up --build
-```
-
-This starts:
-- **API** on `http://localhost:3000`
-- **Redis** on `localhost:6379`
-- **MongoDB** on `localhost:27017`
-
-### Production Deployment
-
-Update `docker-compose.yml` with external MongoDB/Redis connections:
-
-```yaml
-environment:
-  MONGODB_URI: mongodb+srv://user:pass@cluster.mongodb.net/telegram_quiz_bot
-  REDIS_URL: redis://redis-host:6379
-```
-
-Then:
-```bash
-docker compose -f docker-compose.yml up -d
-```
-
----
-
-## Testing the API
-
-### 1. Sign In
-
-```bash
-curl -X POST http://localhost:3000/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chatId": "-1003730571930",
-    "botToken": "YOUR_BOT_TOKEN",
-    "isChannel": true
-  }'
-```
-
-Copy the `apiKey` from the response.
-
-### 2. Upload an Image
-
-```bash
-curl -X POST http://localhost:3000/images/upload \
-  -H "x-api-key: YOUR_API_KEY" \
-  -F "image=@/path/to/image.jpg"
-```
-
-Copy the `publicId` from the response.
-
-### 3. Send a Quiz
-
-```bash
-curl -X POST http://localhost:3000/quizzes/send \
-  -H "x-api-key: YOUR_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "delayMs": 2000,
-    "quizzes": [
-      {
-        "question": "Test question?",
-        "options": ["A", "B"],
-        "correctAnswerId": 0,
-        "image": "YOUR_PUBLIC_ID"
-      }
-    ]
-  }'
-```
-
-Copy the `jobId` from the response.
-
-### 4. Check Job Status
-
-```bash
-curl http://localhost:3000/jobs/YOUR_JOB_ID \
-  -H "x-api-key: YOUR_API_KEY"
-```
+- Response time
+- Client IP, user agent
+- API key fingerprint (not full key)
 
 ---
 
 ## Troubleshooting
 
-### "MONGODB_URI is required"
-Make sure `MONGODB_URI` is set in `.env` and MongoDB is running.
-
+### "MongoDB connection failed"
 ```bash
-# Check if MongoDB is running (local)
-mongosh
+# Check MongoDB is running
+mongosh "mongodb://127.0.0.1:27017"
+
+# Verify MONGODB_URI in .env
+echo $MONGODB_URI
 ```
 
-### "Redis connection failed"
-Ensure Redis is running and `REDIS_URL` is correct.
-
+### "Redis connection error"
 ```bash
-# Check if Redis is running (local)
+# Check Redis is running
 redis-cli ping
 # Should return: PONG
+
+# Verify REDIS_URL
+redis-cli -u $REDIS_URL ping
 ```
 
 ### "Telegram API error: Unauthorized"
-- Verify `botToken` is correct (get from [@BotFather](https://t.me/botfather))
-- Ensure the bot is in the chat/channel
-- Token may have been revoked; regenerate with `/newtoken` in BotFather
+- Verify bot token format: `123456:ABC-DEF...`
+- Get new token from [@BotFather](https://t.me/botfather)
+- Ensure bot is in the chat/channel
+- Test token validity:
+  ```bash
+  curl https://api.telegram.org/bot<YOUR_TOKEN>/getMe | jq .
+  ```
 
-### "Failed to write audit log"
-Check MongoDB connection and that the `audit_logs` collection can be written to.
+### "Quiz job stuck in 'active'"
+- Ensure `RUN_QUEUE_WORKER=true`
+- Check worker logs: `tail -f logs/app.log | grep worker`
+- Worker needs to be running in the same process or separate
 
-### Images not uploading
-- Verify Cloudinary credentials in `.env`
-- Ensure `CLOUDINARY_CLOUD_NAME` matches your account
-- Check file is a valid image format (jpg, png, webp, gif)
+### "Images not uploading"
+- Verify Cloudinary credentials are correct
+- Check image file is valid (jpg, png, webp, gif)
+- Max file size: 50MB
+- Ensure API key has upload permissions
 
+### "Webhook not receiving updates"
+- `WEBHOOK_BASE_URL` must be public HTTPS (Telegram can't reach localhost)
+- For local testing, use `ngrok http 3000`
+- Verify `REGISTER_WEBHOOK_ON_SIGNIN=true` or manually register
+- Check webhook URL is accessible: `curl https://your-api-domain.com/telegram/webhook/...`
 
+---
 
-## Legacy Mode (Single Bot)
+## Database Schemas
 
-For backward compatibility, the service supports "send-all" mode where a single bot token is configured via environment variables. This mode reads quizzes from files and sends them all at once.
-
-**Run legacy mode:**
-```bash
-npm run send-all
+### Users (API mode)
+```javascript
+{
+  "_id": ObjectId,
+  "chatId": "-1003730571930",
+  "isChannel": true,
+  "botToken": "encrypted_hash",
+  "cloudinaryFolder": "1003730571930",
+  "webhookSecret": "hash",
+  "createdAt": ISODate,
+  "updatedAt": ISODate
+}
 ```
 
-**This mode requires:**
-- `BOT_TOKEN`, `CHAT_ID`, `IS_CHANNEL`
-- `SUCCESS_LOG_FILE`, `FAILED_LOG_FILE`
+### Audit Logs
+```javascript
+{
+  "_id": ObjectId,
+  "userId": ObjectId,
+  "chatId": "-1003730571930",
+  "method": "POST",
+  "path": "/quizzes/send",
+  "statusCode": 200,
+  "ipAddress": "192.168.1.1",
+  "responseTime": 45,
+  "timestamp": ISODate
+}
+```
 
-**Note:** Legacy mode is single-threaded and not recommended for production. Use API mode for new deployments.
+### Quiz Answers
+```javascript
+{
+  "_id": ObjectId,
+  "userId": ObjectId,
+  "telegramUserId": 123456,
+  "pollId": "poll_abc",
+  "optionIds": [1],
+  "isCorrect": false,
+  "retryScheduled": true,
+  "retryAt": ISODate,
+  "answeredAt": ISODate
+}
+```
+
+---
+
+## Deployment
+
+### Heroku
+
+1. **Create app and set buildpack:**
+   ```bash
+   heroku create my-quiz-bot
+   heroku buildpacks:set heroku/nodejs
+   ```
+
+2. **Provision Redis:**
+   ```bash
+   heroku addons:create heroku-redis:mini
+   ```
+
+3. **Set environment variables:**
+   ```bash
+   heroku config:set \
+     NODE_ENV=production \
+     MONGODB_URI=<your-mongodb-atlas-url> \
+     BOT_TOKEN_ENCRYPTION_KEY=<your-secret> \
+     CLOUDINARY_CLOUD_NAME=<name> \
+     CLOUDINARY_API_KEY=<key> \
+     CLOUDINARY_API_SECRET=<secret>
+   ```
+
+4. **Deploy:**
+   ```bash
+   git push heroku main
+   heroku logs --tail
+   ```
+
+### Local/VPS
+
+1. Install Node.js 20+, Redis, MongoDB
+2. Clone repo, run `npm install`
+3. Create `.env` file
+4. `npm run build && npm start`
+5. Use PM2 or systemd to keep it running
+
+---
+
+## Environment Variables Reference
+
+| Variable | Required | Default | Notes |
+|----------|----------|---------|-------|
+| `PORT` | No | `3000` | API server port |
+| `NODE_ENV` | No | `development` | `development` or `production` |
+| `MONGODB_URI` | Yes | — | MongoDB connection string |
+| `REDIS_URL` | Yes | — | Redis connection string |
+| `RUN_QUEUE_WORKER` | No | `false` | Enable background job processing |
+| `CLOUDINARY_CLOUD_NAME` | Yes | — | Cloudinary account name |
+| `CLOUDINARY_API_KEY` | Yes | — | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Yes | — | Cloudinary API secret |
+| `BOT_TOKEN_ENCRYPTION_KEY` | Yes | — | 32+ char encryption key |
+| `WEBHOOK_BASE_URL` | No | — | Public URL for Telegram webhooks |
+| `REGISTER_WEBHOOK_ON_SIGNIN` | No | `true` | Auto-register on sign-in |
+| `RUN_WRONG_ANSWER_RETRY_WORKER` | No | `true` | Enable retry worker |
+| `RATE_LIMIT_WINDOW_MS` | No | `900000` | 15 minutes |
+| `RATE_LIMIT_MAX` | No | `120` | Requests per window |
+| `BOT_TOKEN` | Legacy only | — | For `npm run send-all` |
+| `CHAT_ID` | Legacy only | — | For `npm run send-all` |
+| `IS_CHANNEL` | Legacy only | `false` | For `npm run send-all` |
+
+---
+
+## What's NOT in This Project
+
+- ❌ Docker / Docker Compose (mentioned in the template doc, not implemented)
+- ❌ Frontend code (separate `/frontend` folder is a Next.js app, not documented here)
+- ❌ BullMQ Board UI (job queue dashboard)
+- ❌ GraphQL API (REST-only)
+- ❌ WebSocket real-time quiz updates
+
+---
+
+## Contributing
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Build and test: `npm run build && npm run dev`
+4. Commit with clear messages: `git commit -m "feat: add feature X"`
+5. Push and create a Pull Request
+
+---
+
+## License
+
+MIT — see LICENSE file
+
+---
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Start API (dev) | `npm run dev` |
+| Start API (prod) | `npm run build && npm start` |
+| Legacy mode | `npm run send-all` |
+| Build | `npm run build` |
+| Sign in | `POST /auth/sign-in` |
+| Send quizzes | `POST /quizzes/send` |
+| Check job | `GET /jobs/:id` |
+| Health | `GET /health` |
+| Health stream | `GET /health/stream` |
+| View logs | `tail -f logs/app.log` |
