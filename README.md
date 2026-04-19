@@ -807,34 +807,6 @@ redis-cli -u $REDIS_URL ping
 | `CHAT_ID` | Legacy only | — | For `npm run send-all` |
 | `IS_CHANNEL` | Legacy only | `false` | For `npm run send-all` |
 
----
-
-## What's NOT in This Project
-
-- ❌ Docker / Docker Compose (mentioned in the template doc, not implemented)
-- ❌ Frontend code (separate `/frontend` folder is a Next.js app, not documented here)
-- ❌ BullMQ Board UI (job queue dashboard)
-- ❌ GraphQL API (REST-only)
-- ❌ WebSocket real-time quiz updates
-
----
-
-## Contributing
-
-1. Fork the repo
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Build and test: `npm run build && npm run dev`
-4. Commit with clear messages: `git commit -m "feat: add feature X"`
-5. Push and create a Pull Request
-
----
-
-## License
-
-MIT — see LICENSE file
-
----
-
 ## Quick Reference
 
 | Task | Command |
