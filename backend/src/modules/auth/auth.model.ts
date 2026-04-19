@@ -15,6 +15,14 @@ import { HTTPStatusText } from "../../types/httpStatusText";
 export class UserModel {
   private static readonly COLLECTION_NAME = "users";
 
+  private static normalizeBotToken(botToken: unknown): string {
+    return String(botToken || "").trim();
+  }
+
+  private static getBotTokenFingerprint(botToken: string): string {
+    return crypto.createHash("sha256").update(botToken).digest("hex");
+  }
+
   private static normalizeChatId(chatId: unknown): string {
     // The chatID should contain a - if it doesn't contain it, it should add it
     const normalizedChatId = String(chatId || "").trim();
@@ -42,9 +50,15 @@ export class UserModel {
 
   private static async ensureIndexes(): Promise<void> {
     try {
-      // Ensuring that the necessary indexes exist on the users collection to optimize query performance and enforce uniqueness constraints on fields like chatId, apiKey, and id.
-      await this.getUsersCollection().createIndexes([
-        { key: { chatId: 1 }, unique: true, name: "uniq_chat_id" },
+      const users = this.getUsersCollection();
+      // Enforce uniqueness per (chatId + bot token) so one chat can own multiple bots.
+      await users.createIndexes([
+        {
+          key: { chatId: 1, botTokenFingerprint: 1 },
+          unique: true,
+          name: "uniq_chat_bot_fingerprint",
+        },
+        { key: { chatId: 1 }, name: "chat_id_idx" },
         { key: { apiKey: 1 }, unique: true, name: "uniq_api_key" },
         { key: { id: 1 }, unique: true, name: "uniq_user_id" },
         { key: { id: 1, webhookSecret: 1 }, name: "user_webhook_idx" },
@@ -71,34 +85,39 @@ export class UserModel {
       const now = new Date().toISOString();
       // Checking the chat id is valid (Has the - and if it's a string)
       const normalizedChatId = this.normalizeChatId(chatId);
+      const normalizedBotToken = this.normalizeBotToken(botToken);
       const users = this.getUsersCollection();
 
       if (!normalizedChatId) {
         throw new CustomError("chatId is required", 400, HTTPStatusText.FAIL);
       }
 
-      const existing = await users.findOne({ chatId: normalizedChatId });
-      const encryptedBotToken = BotTokenCipher.encrypt(
-        botToken as unknown as string,
-      );
-      // If the user already exists, it should update the bot token and the isChannel flag, but it should keep the same API key and the same webhook secret (unless the bot token is being updated, in this case it should generate a new webhook secret)
-      const nextWebhookSecret =
-        existing?.webhookSecret || crypto.randomBytes(24).toString("hex");
+      if (!normalizedBotToken) {
+        throw new CustomError("botToken is required", 400, HTTPStatusText.FAIL);
+      }
+
+      const botTokenFingerprint = this.getBotTokenFingerprint(normalizedBotToken);
+      const encryptedBotToken = BotTokenCipher.encrypt(normalizedBotToken);
+
+      const existing = await users.findOne({
+        chatId: normalizedChatId,
+        botTokenFingerprint,
+      });
 
       if (existing) {
-        // If the user already exists, it should update the bot token and the isChannel flag
         await users.updateOne(
           { _id: existing._id },
           {
             $set: {
               botTokenEncrypted: encryptedBotToken,
-              webhookSecret: nextWebhookSecret,
+              botTokenFingerprint,
+              webhookSecret: existing.webhookSecret,
               isChannel: Boolean(isChannel),
               updatedAt: now,
             },
           },
         );
-        // After updating, it should return the updated user data with the decrypted bot token
+
         return {
           user: this.publicUser({
             ...existing,
@@ -115,7 +134,8 @@ export class UserModel {
         apiKey: crypto.randomBytes(24).toString("hex"),
         chatId: normalizedChatId,
         botTokenEncrypted: encryptedBotToken,
-        webhookSecret: nextWebhookSecret,
+        botTokenFingerprint,
+        webhookSecret: crypto.randomBytes(24).toString("hex"),
         isChannel: Boolean(isChannel),
         createdAt: now,
         updatedAt: now,
@@ -223,9 +243,15 @@ export class UserModel {
         return null;
       }
 
-      const user = await this.getUsersCollection().findOne({
-        chatId: normalizedChatId,
-      });
+      const user = await this.getUsersCollection().findOne(
+        {
+          chatId: normalizedChatId,
+        },
+        {
+          // Multiple bots can now exist for one chat; return the latest updated one.
+          sort: { updatedAt: -1 },
+        },
+      );
 
       if (!user) {
         return null;

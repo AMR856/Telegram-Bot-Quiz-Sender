@@ -4,6 +4,7 @@ export interface MongoUser {
   apiKey: string;
   chatId: string;
   botTokenEncrypted: string;
+  botTokenFingerprint?: string;
   webhookSecret: string;
   isChannel: boolean;
   createdAt: string;
