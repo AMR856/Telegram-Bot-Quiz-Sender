@@ -5,6 +5,7 @@ interface EnqueueQuizzesParams {
   user: unknown;
   quizzes: any[];
   delayMs?: number;
+  retryWrongAfterMinutes?: number;
 }
 
 export class QuizzesService {
@@ -13,11 +14,13 @@ export class QuizzesService {
     user,
     quizzes,
     delayMs = 2000,
+    retryWrongAfterMinutes = 0,
   }: EnqueueQuizzesParams) {
     const job = await queue.add(SEND_QUIZZES_JOB_NAME, {
       user,
       quizzes,
       delayMs: Number(delayMs || 2000),
+      retryWrongAfterMinutes: Number(retryWrongAfterMinutes || 0),
     });
 
     return {

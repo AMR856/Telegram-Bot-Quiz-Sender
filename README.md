@@ -63,6 +63,16 @@ CLOUDINARY_API_SECRET=your_api_secret
 # Security
 BOT_TOKEN_ENCRYPTION_KEY=your_long_random_secret_key_min_32_chars
 
+# Telegram webhook for poll-answer listener (required for wrong-answer tracking)
+WEBHOOK_BASE_URL=https://your-public-api-domain.com
+REGISTER_WEBHOOK_ON_SIGNIN=true
+
+# Wrong-answer retry worker tuning
+RUN_WRONG_ANSWER_RETRY_WORKER=true
+WRONG_ANSWER_RETRY_INTERVAL_MS=30000
+WRONG_ANSWER_RETRY_BATCH_SIZE=50
+WRONG_ANSWER_RETRY_BACKOFF_MINUTES=5
+
 # API Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000      # 15 minutes
 RATE_LIMIT_MAX=120               # 120 requests per window
@@ -175,7 +185,8 @@ heroku logs --tail
     "chatId": "-1003730571930",
     "cloudinaryFolder": "1003730571930"
   },
-  "expiresIn": null
+  "expiresIn": null,
+  "webhookUrl": "https://your-public-api-domain.com/telegram/webhook/<userId>/<secret>"
 }
 ```
 
@@ -233,6 +244,7 @@ curl -X POST http://localhost:3000/images/upload \
 ```json
 {
   "delayMs": 2000,
+  "retryWrongAfterMinutes": 60,
   "quizzes": [
     {
       "question": "What is the capital of France?",
@@ -253,6 +265,7 @@ curl -X POST http://localhost:3000/images/upload \
 | Field | Type | Description |
 |-------|------|-------------|
 | `delayMs` | number | Milliseconds to wait between sending each quiz (default: 2000, prevents rate limiting) |
+| `retryWrongAfterMinutes` | number | If greater than 0, wrong answers are re-sent to the answering user in a private chat after this delay |
 | `quizzes` | array | Array of quiz objects |
 | `quizzes[].question` | string | The quiz question (required) |
 | `quizzes[].options` | array | 2–8 answer choices (required) |
@@ -290,6 +303,14 @@ The `image` field supports three formats:
   "count": 2
 }
 ```
+
+### Telegram Listener Webhook
+
+**Endpoint:** `POST /telegram/webhook/:userId/:secret`
+
+**Purpose:** Receives Telegram `poll_answer` updates, stores each user's answer, and schedules wrong answers for delayed retry.
+
+This endpoint is configured automatically on sign-in when `WEBHOOK_BASE_URL` is set and `REGISTER_WEBHOOK_ON_SIGNIN` is not `false`.
 
 **cURL Example:**
 ```bash

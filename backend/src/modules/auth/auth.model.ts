@@ -42,14 +42,21 @@ export class UserModel {
 
   private static async ensureIndexes(): Promise<void> {
     try {
+      // Ensuring that the necessary indexes exist on the users collection to optimize query performance and enforce uniqueness constraints on fields like chatId, apiKey, and id.
       await this.getUsersCollection().createIndexes([
         { key: { chatId: 1 }, unique: true, name: "uniq_chat_id" },
         { key: { apiKey: 1 }, unique: true, name: "uniq_api_key" },
+        { key: { id: 1 }, unique: true, name: "uniq_user_id" },
+        { key: { id: 1, webhookSecret: 1 }, name: "user_webhook_idx" },
       ]);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to create indexes: ${errorMessage}`);
+      throw new CustomError(
+        `Failed to create indexes: ${errorMessage}`,
+        500,
+        HTTPStatusText.ERROR,
+      );
     }
   }
 
@@ -74,6 +81,9 @@ export class UserModel {
       const encryptedBotToken = BotTokenCipher.encrypt(
         botToken as unknown as string,
       );
+      // If the user already exists, it should update the bot token and the isChannel flag, but it should keep the same API key and the same webhook secret (unless the bot token is being updated, in this case it should generate a new webhook secret)
+      const nextWebhookSecret =
+        existing?.webhookSecret || crypto.randomBytes(24).toString("hex");
 
       if (existing) {
         // If the user already exists, it should update the bot token and the isChannel flag
@@ -82,6 +92,7 @@ export class UserModel {
           {
             $set: {
               botTokenEncrypted: encryptedBotToken,
+              webhookSecret: nextWebhookSecret,
               isChannel: Boolean(isChannel),
               updatedAt: now,
             },
@@ -104,6 +115,7 @@ export class UserModel {
         apiKey: crypto.randomBytes(24).toString("hex"),
         chatId: normalizedChatId,
         botTokenEncrypted: encryptedBotToken,
+        webhookSecret: nextWebhookSecret,
         isChannel: Boolean(isChannel),
         createdAt: now,
         updatedAt: now,
@@ -148,6 +160,7 @@ export class UserModel {
         apiKey: user.apiKey,
         chatId: user.chatId,
         botToken: BotTokenCipher.decrypt(user.botTokenEncrypted), // decrypted bot token should be returned
+        webhookSecret: user.webhookSecret,
         isChannel: Boolean(user.isChannel),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -185,6 +198,7 @@ export class UserModel {
         apiKey: user.apiKey,
         chatId: user.chatId,
         botToken: BotTokenCipher.decrypt(user.botTokenEncrypted),
+        webhookSecret: user.webhookSecret,
         isChannel: Boolean(user.isChannel),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -222,6 +236,7 @@ export class UserModel {
         apiKey: user.apiKey,
         chatId: user.chatId,
         botToken: BotTokenCipher.decrypt(user.botTokenEncrypted),
+        webhookSecret: user.webhookSecret,
         isChannel: Boolean(user.isChannel),
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
@@ -231,6 +246,48 @@ export class UserModel {
         error instanceof Error ? error.message : "Unknown error";
       throw new CustomError(
         `Failed to get user by chat ID: ${errorMessage}`,
+        400,
+        HTTPStatusText.FAIL,
+      );
+    }
+  }
+
+  static async getUserByWebhook(
+    userId: unknown,
+    webhookSecret: unknown,
+  ): Promise<DecryptedUser | null> {
+    try {
+      const normalizedUserId = String(userId || "").trim();
+      const normalizedWebhookSecret = String(webhookSecret || "").trim();
+
+      if (!normalizedUserId || !normalizedWebhookSecret) {
+        return null;
+      }
+
+      const user = await this.getUsersCollection().findOne({
+        id: normalizedUserId,
+        webhookSecret: normalizedWebhookSecret,
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      return {
+        id: user.id,
+        apiKey: user.apiKey,
+        chatId: user.chatId,
+        botToken: BotTokenCipher.decrypt(user.botTokenEncrypted),
+        webhookSecret: user.webhookSecret,
+        isChannel: Boolean(user.isChannel),
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      throw new CustomError(
+        `Failed to get user by webhook credentials: ${errorMessage}`,
         400,
         HTTPStatusText.FAIL,
       );

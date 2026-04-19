@@ -46,6 +46,7 @@ export class QuizBot {
     this.failedLogFile = failedLogFile;
     this.sender = new QuizSender({
       telegramClient: new TelegramClient({ baseUrl, isChannel }),
+      isChannel,
     });
   }
 
